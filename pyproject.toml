@@ -7,8 +7,10 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "pydantic>=2.14.2",
     "pydantic-settings>=2.16.2",
+    "pyyaml>=6.0.3",
     "rich>=15.0.0",
     "typer>=0.27.3",
+    "tzdata>=2026.6",
 ]
 
 [project.scripts]
@@ -32,7 +34,7 @@ files = ["src"]
 plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "src/atlas/skills"]
 addopts = "--cov=atlas --cov-report=term-missing"
 
 [dependency-groups]
@@ -42,4 +44,5 @@ dev = [
     "pytest>=9.2.0",
     "pytest-cov>=7.1.0",
     "ruff>=0.17.3",
+    "types-pyyaml>=6.0.12.20261103",
 ]

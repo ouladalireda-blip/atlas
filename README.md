@@ -23,5 +23,6 @@ uv run pre-commit install   # active les vérifications avant chaque commit
 ## Documentation
 
 - [Architecture](docs/architecture.md)
+- [Écrire une compétence](docs/writing-a-skill.md)
 - [Décisions d'architecture](docs/adr/)
 - [Journal des modifications](CHANGELOG.md)

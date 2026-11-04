@@ -1,0 +1,7 @@
+name: clock
+version: "0.1.0"
+description: Donne la date et l'heure actuelles.
+examples:
+  - Quelle heure est-il ?
+  - Quel jour sommes-nous ?
+requires_approval: []

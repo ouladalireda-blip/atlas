@@ -1,0 +1,6 @@
+name: healthy
+version: "1.0.0"
+description: Compétence de test valide.
+examples:
+  - Dis bonjour
+requires_approval: []

@@ -1,8 +1,8 @@
 # Architecture
 
 ATLAS est un agent IA personnel, local-first. Le moteur est séparé des compétences, et le
-modèle de langage est interchangeable. À ce stade, seul le squelette existe : les dossiers
-ci-dessous décrivent le rôle prévu.
+modèle de langage est interchangeable. À ce stade, seuls le contrat de compétence et la CLI
+sont implémentés : les autres dossiers ci-dessous décrivent le rôle prévu.
 
 ## Code (`src/atlas/`)
 
@@ -10,7 +10,7 @@ ci-dessous décrivent le rôle prévu.
 | --- | --- |
 | `config.py` | Réglages de l'application, lus depuis l'environnement et `.env`. |
 | `core/` | Moteur : agent, vérificateur, trieur, reçus. Ne dépend d'aucune compétence. |
-| `skills/` | Compétences, découvertes automatiquement. Une compétence vit dans `skills/<nom>/` avec `skill.py`, `manifest.yaml` et `tests/`. |
+| `skills/` | Contrat (`base.py`, `manifest.py`, `loader.py`) et compétences, découvertes automatiquement. Une compétence vit dans `skills/<nom>/` avec `skill.py`, `manifest.yaml` et `tests/` ; voir [le guide](writing-a-skill.md). |
 | `llm/` | Interface commune aux modèles (OpenRouter, Ollama). |
 | `memory/` | Mémoire de l'agent. |
 | `storage/` | Persistance locale des données. |
@@ -22,7 +22,7 @@ ci-dessous décrivent le rôle prévu.
 | --- | --- |
 | `tests/` | Tests du projet ; aucun ne fait d'appel réseau (LLM simulé). |
 | `docs/` | Documentation et décisions d'architecture (`adr/`). |
-| `evals/` | Scénarios d'évaluation, au moins 3 par compétence. Créé avec la première compétence. |
+| `evals/` | Scénarios d'évaluation, au moins 3 par compétence. |
 | `legacy/` | Ancienne version, conservée comme référence. Ne jamais la modifier ni l'importer. |
 
 ## Règles de sécurité

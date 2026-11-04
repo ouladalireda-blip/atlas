@@ -1,0 +1,12 @@
+# Scénarios de la compétence clock ; expected_tool vaut null si aucun outil n'est attendu.
+skill: clock
+scenarios:
+  - id: heure_actuelle
+    prompt: Quelle heure est-il ?
+    expected_tool: clock_now
+  - id: date_du_jour
+    prompt: Quelle est la date d'aujourd'hui ?
+    expected_tool: clock_now
+  - id: question_sans_rapport_avec_le_present
+    prompt: Explique-moi ce qu'est un fuseau horaire.
+    expected_tool: null
