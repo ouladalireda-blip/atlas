@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ATLAS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f3ef; --panel:#fbfaf7; --ink:#1d1f1c; --muted:#6b6e66; --line:#dddbd3;
+  --accent:#2f5d50; --ok:#2e7d4f; --warn:#b07a12; --bad:#b3372e; --chip:#eceae3;
+  --me:#1d1f1c; --me-ink:#f4f3ef;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121412; --panel:#191c19; --ink:#e7e8e2; --muted:#9a9e94; --line:#2b2f2a;
+    --accent:#7fb8a4; --ok:#6fcf97; --warn:#e2b04a; --bad:#ef7b6f; --chip:#232722;
+    --me:#e7e8e2; --me-ink:#121412;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif;height:100dvh;display:grid;
+  grid-template-columns:240px 1fr 340px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+aside,section.side{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+section.side{border-right:0;border-left:1px solid var(--line)}
+.brand{padding:18px 16px 12px;display:flex;align-items:baseline;gap:8px}
+.brand b{letter-spacing:.18em;font-weight:600}
+.brand span{font-size:12px;color:var(--muted)}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:6px;padding:6px 10px}
+button:hover{border-color:var(--ink)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.new{margin:0 16px 12px}
+.sessions{overflow:auto;padding:0 8px 16px}
+.sess{display:block;width:100%;text-align:left;border:0;padding:8px;border-radius:6px;font-size:14px;color:var(--muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sess.active,.sess:hover{background:var(--chip);color:var(--ink)}
+main{display:flex;flex-direction:column;min-height:0;min-width:0}
+.top{display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
+.top .dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.top .demo{color:var(--warn)}
+.feed{flex:1;overflow:auto;padding:24px 20px;display:flex;flex-direction:column;gap:18px}
+.msg{max-width:720px}
+.msg.user{align-self:flex-end;background:var(--me);color:var(--me-ink);padding:10px 14px;border-radius:14px 14px 4px 14px}
+.msg.assistant .body{white-space:pre-wrap}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.badge{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid currentColor;font-weight:500}
+.v-verified{color:var(--ok)} .v-corrected{color:var(--warn)} .v-blocked,.v-error{color:var(--bad)} .v-no_claims{color:var(--muted)}
+.chip{font-size:12px;background:var(--chip);border-radius:4px;padding:2px 6px;color:var(--muted)}
+.chip.ok{color:var(--ok)} .chip.err{color:var(--bad)} .chip.pend{color:var(--warn)}
+details{font-size:13px;color:var(--muted);margin-top:6px}
+details pre{white-space:pre-wrap;background:var(--chip);padding:8px;border-radius:6px;margin:6px 0 0;font-size:12px;overflow:auto}
+.cite{color:var(--accent);font-family:"IBM Plex Mono",monospace;font-size:13px}
+form.composer{display:flex;gap:8px;padding:14px 20px;border-top:1px solid var(--line)}
+textarea{flex:1;resize:none;font:inherit;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  min-height:44px;max-height:160px}
+textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.empty{margin:auto;text-align:center;color:var(--muted);max-width:440px}
+.empty h2{color:var(--ink);font-weight:500;margin:0 0 6px}
+.try{display:flex;flex-direction:column;gap:6px;margin-top:16px}
+.try button{font-size:14px;text-align:left}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tabs button{flex:1;border:0;border-radius:0;padding:12px 4px;font-size:13px;color:var(--muted);border-bottom:2px solid transparent}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--ink)}
+.pane{padding:16px;overflow:auto;flex:1;font-size:14px}
+.pane h4{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:500}
+.card{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:10px;background:var(--bg)}
+.card .row{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.kpi{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.kpi div{border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--bg)}
+.kpi b{display:block;font-size:22px;font-weight:500}
+.kpi span{font-size:12px;color:var(--muted)}
+.muted{color:var(--muted)}
+.menu{display:none}
+@media (max-width:1000px){
+  body{grid-template-columns:1fr}
+  aside,section.side{display:none}
+  body.show-side section.side{display:flex;position:fixed;inset:0;z-index:5}
+  body.show-nav aside{display:flex;position:fixed;inset:0;z-index:5}
+  .menu{display:inline-block}
+  .feed,form.composer,.top{padding-left:16px;padding-right:16px}
+}
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand"><b>ATLAS</b><span>assistant vérifié</span><span style="flex:1"></span><button class="menu" onclick="document.body.classList.remove('show-nav')">✕</button></div>
+  <button class="new" id="newBtn">+ Nouvelle conversation</button>
+  <div class="sessions" id="sessions"></div>
+</aside>
+
+<main>
+  <div class="top">
+    <button class="menu" onclick="document.body.classList.toggle('show-nav')">☰</button>
+    <span class="dot" id="dot"></span><span id="status">…</span>
+    <span style="flex:1"></span>
+    <button class="menu" onclick="document.body.classList.toggle('show-side')">Panneau</button>
+  </div>
+  <div class="feed" id="feed"></div>
+  <form class="composer" id="composer">
+    <textarea id="input" rows="1" placeholder="Écris à ATLAS…"></textarea>
+    <button class="primary" type="submit" id="send">Envoyer</button>
+  </form>
+</main>
+
+<section class="side">
+  <div class="tabs">
+    <button data-tab="turn" class="on">Tour</button>
+    <button data-tab="mail">E-mails</button>
+    <button data-tab="mem">Mémoire</button>
+    <button data-tab="stats">Stats</button>
+    <button class="menu" style="flex:0 0 44px" onclick="document.body.classList.remove('show-side')">✕</button>
+  </div>
+  <div class="pane" id="pane"></div>
+</section>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const VERDICT = {verified:"✓ vérifié par reçu", corrected:"↺ corrigé par le vérificateur", blocked:"⛔ affirmation bloquée",
+                 no_claims:"aucune action affirmée", error:"erreur modèle"};
+let session = null, lastTurn = null, tab = "turn";
+
+async function api(path, opts={}){
+  const r = await fetch(path, {headers:{"Content-Type":"application/json"}, ...opts});
+  if(!r.ok) throw new Error((await r.json().catch(()=>({}))).detail || r.statusText);
+  return r.json();
+}
+const cites = t => esc(t).replace(/\[(fact#\d+|msg#\d+|note:[^\]\s]+)\]/g, '<span class="cite">[$1]</span>');
+
+function receiptChips(receipts){
+  return (receipts||[]).map(r => {
+    const cls = r.status === "ok" || r.status === "sent" ? "ok" : r.status === "error" ? "err" : "pend";
+    return `<span class="chip ${cls} mono">#${r.action_id} ${esc(r.tool)} · ${esc(r.status)}</span>`;
+  }).join("");
+}
+
+function render(msg){
+  const el = document.createElement("div");
+  el.className = "msg " + msg.role;
+  if(msg.role === "user"){ el.textContent = msg.content; }
+  else{
+    const v = msg.verification?.verdict;
+    el.innerHTML = `<div class="body">${cites(msg.content)}</div>` + (v ? `<div class="meta">
+      <span class="badge v-${v}">${VERDICT[v]||v}</span>${receiptChips(msg.receipts)}
+      ${msg.triage ? `<span class="chip">${esc(msg.triage.effort)}</span>` : ""}</div>` : "");
+    if(msg.verification?.unsupported?.length || (v === "corrected")){
+      el.innerHTML += `<details><summary>Ce que le vérificateur a vu</summary><pre class="mono">${esc(JSON.stringify(msg.verification, null, 2))}</pre></details>`;
+    }
+  }
+  $("#feed").appendChild(el);
+  $("#feed").scrollTop = $("#feed").scrollHeight;
+}
+
+function emptyState(){
+  $("#feed").innerHTML = `<div class="empty"><h2>Rien n'est « fait » sans reçu.</h2>
+    <p>Chaque réponse est confrontée aux outils réellement exécutés. Essaie :</p><div class="try">
+    <button>Ajoute un rdv demain à 14h avec Karim</button>
+    <button>Retiens que mon manager s'appelle Karim</button>
+    <button>Comment s'appelle mon manager ?</button>
+    <button>Prépare un mail à karim@exemple.fr pour confirmer jeudi</button></div></div>`;
+  document.querySelectorAll(".try button").forEach(b => b.onclick = () => { $("#input").value = b.textContent; send(); });
+}
+
+async function loadSessions(){
+  const list = await api("/api/sessions");
+  $("#sessions").innerHTML = list.map(s => `<button class="sess ${s.id===session?"active":""}" data-id="${s.id}">${esc(s.title||s.id)}</button>`).join("")
+    || `<p class="muted" style="padding:8px;font-size:13px">Aucune conversation.</p>`;
+  document.querySelectorAll(".sess").forEach(b => b.onclick = () => openSession(b.dataset.id));
+}
+
+async function openSession(id){
+  session = id; document.body.classList.remove("show-nav");
+  const d = await api("/api/sessions/" + id);
+  $("#feed").innerHTML = "";
+  d.messages.forEach(m => render(m.role === "assistant" ? {...m, ...d.turns[m.turn_id]} : m));
+  loadSessions();
+}
+
+async function send(e){
+  e?.preventDefault();
+  const text = $("#input").value.trim(); if(!text) return;
+  if($(".empty")) $("#feed").innerHTML = "";
+  $("#input").value = ""; render({role:"user", content:text});
+  $("#send").disabled = true; $("#status").textContent = "ATLAS réfléchit…";
+  try{
+    const r = await api("/api/chat", {method:"POST", body:JSON.stringify({message:text, session_id:session})});
+    session = r.session_id; lastTurn = r;
+    render({role:"assistant", content:r.reply, verification:r.verification, receipts:r.receipts, triage:r.triage});
+    loadSessions(); showTab(r.receipts.some(x => x.status === "pending_approval") ? "mail" : tab);
+  }catch(err){ render({role:"assistant", content:"⚠️ " + err.message}); }
+  $("#send").disabled = false; health();
+}
+
+async function showTab(t){
+  tab = t; document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
+  const p = $("#pane");
+  if(t === "turn"){
+    if(!lastTurn){ p.innerHTML = `<p class="muted">Le détail du dernier tour apparaîtra ici : tri, souvenirs rappelés, reçus d'outils, verdict.</p>`; return; }
+    const tr = lastTurn.triage;
+    p.innerHTML = `<h4>Trieur</h4><div class="card"><div class="row"><span>Effort</span><b>${esc(tr.effort)}</b></div>
+      <div class="row"><span>Modèle</span><span class="mono" style="font-size:12px">${esc(lastTurn.model)}</span></div>
+      <div class="meta">${tr.groups.map(g => `<span class="chip">${esc(g)}</span>`).join("") || '<span class="chip">aucun outil</span>'}</div></div>
+      <h4>Mémoire rappelée</h4>${lastTurn.recall.map(m => `<div class="card"><span class="cite">[${esc(m.source)}]</span> <span class="muted">${m.score}</span><div>${esc(m.content.slice(0,220))}</div></div>`).join("") || '<p class="muted">Rien de pertinent.</p>'}
+      <h4>Reçus</h4>${lastTurn.receipts.map(r => `<div class="card"><div class="row"><b class="mono">#${r.action_id} ${esc(r.tool)}</b><span class="chip">${esc(r.status)}</span></div><pre class="mono" style="font-size:12px;white-space:pre-wrap;margin:6px 0 0">${esc(JSON.stringify(r.result, null, 1))}</pre></div>`).join("") || '<p class="muted">Aucun outil exécuté.</p>'}
+      <h4>Vérification</h4><div class="card"><span class="badge v-${lastTurn.verification.verdict}">${VERDICT[lastTurn.verification.verdict]}</span>
+      ${lastTurn.verification.claims.map(c => `<div style="margin-top:6px"><span class="chip">${esc(c.category)}</span> « ${esc(c.text)} »</div>`).join("")}</div>
+      <p class="muted mono" style="font-size:12px">${lastTurn.usage.prompt_tokens} tok in · ${lastTurn.usage.completion_tokens} out · ${lastTurn.usage.cached_tokens} cache · $${(+lastTurn.usage.cost).toFixed(5)}</p>`;
+  }
+  if(t === "mail"){
+    const list = await api("/api/outbox");
+    p.innerHTML = `<h4>En attente d'approbation</h4>` + (list.map(m => `<div class="card"><div class="row"><b>${esc(m.recipient)}</b><span class="chip mono">#${m.id}</span></div>
+      <div><b>${esc(m.subject)}</b></div><pre class="mono" style="white-space:pre-wrap;font-size:12px">${esc(m.body)}</pre>
+      <div class="meta"><button class="primary" data-a="approve" data-id="${m.id}">Approuver l'envoi</button><button data-a="reject" data-id="${m.id}">Rejeter</button></div></div>`).join("")
+      || `<p class="muted">Aucun brouillon. ATLAS n'envoie rien sans ton accord.</p>`);
+    p.querySelectorAll("[data-a]").forEach(b => b.onclick = async () => { await api(`/api/outbox/${b.dataset.id}/${b.dataset.a}`, {method:"POST"}); showTab("mail"); });
+  }
+  if(t === "mem"){
+    const [facts, notes] = await Promise.all([api("/api/memory/facts"), api("/api/notes")]);
+    p.innerHTML = `<h4>Faits durables</h4>` + (facts.map(f => `<div class="card"><div class="row"><span class="cite">[fact#${f.id}]</span><span class="chip">${esc(f.speaker)}</span></div>
+      <div>${esc(f.content)}</div><button style="margin-top:6px;font-size:12px" data-f="${f.id}">Oublier</button></div>`).join("") || `<p class="muted">Aucun fait pour l'instant.</p>`)
+      + `<h4 style="margin-top:16px">Notes</h4>` + (notes.map(n => `<div class="card mono" style="font-size:13px">${esc(n)}</div>`).join("") || `<p class="muted">Aucune note.</p>`);
+    p.querySelectorAll("[data-f]").forEach(b => b.onclick = async () => { await api("/api/memory/facts/" + b.dataset.f, {method:"DELETE"}); showTab("mem"); });
+  }
+  if(t === "stats"){
+    const s = await api("/api/stats");
+    const v = s.verdicts;
+    p.innerHTML = `<div class="kpi"><div><b>$${s.today.cost_usd.toFixed(4)}</b><span>coût aujourd'hui</span></div>
+      <div><b>${s.today.cache_hit_rate == null ? "—" : Math.round(s.today.cache_hit_rate*100)+"%"}</b><span>cache hit</span></div>
+      <div><b>${s.today.turns}</b><span>tours aujourd'hui</span></div><div><b>${s.false_claims_caught}</b><span>fausses confirmations rattrapées</span></div></div>
+      <h4>Verdicts</h4>${Object.entries(v).map(([k,n]) => `<div class="row card"><span class="badge v-${k}">${VERDICT[k]||k}</span><b>${n}</b></div>`).join("") || '<p class="muted">—</p>'}
+      <h4>Effort choisi par le trieur</h4>${Object.entries(s.efforts).map(([k,n]) => `<div class="row card"><span>${esc(k)}</span><b>${n}</b></div>`).join("") || '<p class="muted">—</p>'}`;
+  }
+}
+
+async function health(){
+  try{
+    const h = await api("/api/health");
+    $("#status").innerHTML = h.demo ? `<span class="demo">mode démo (pas de clé OpenRouter)</span> · ${h.backend}` : `${esc(h.models.main)} · ${h.backend}`;
+  }catch{ $("#dot").style.background = "var(--bad)"; $("#status").textContent = "serveur injoignable"; }
+}
+
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+$("#composer").onsubmit = send;
+$("#input").addEventListener("keydown", e => { if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); send(); } });
+$("#newBtn").onclick = () => { session = null; lastTurn = null; emptyState(); loadSessions(); showTab("turn"); };
+emptyState(); loadSessions(); showTab("turn"); health();
+</script>
+</body>
+</html>
