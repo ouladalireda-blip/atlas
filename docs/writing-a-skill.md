@@ -32,7 +32,10 @@ claims:
   validation.
 - `claims` donne, pour chaque effet, les mots qui signalent qu'une réponse affirme cette action.
   Déclarez-le pour tout effet : sans lui, le vérificateur ne contrôle pas ces affirmations. Donnez
-  à chaque effet ses propres mots, car un mot partagé exige un reçu de chacun des effets.
+  à chaque effet ses propres mots, car un mot partagé exige un reçu de chacun des effets. Deux
+  effets d'une même compétence partagent souvent un nom (« tâche ») : mettez le nom sur l'effet
+  d'écriture et, pour l'autre, les verbes (« supprimé », « supprime ») : un verbe qui figure dans le
+  vocabulaire d'un effet désigne cet effet et lui seul.
 
 ## 2. Écrire la classe dans `skill.py`
 
@@ -69,6 +72,53 @@ Respectez ces règles, sinon la compétence est signalée en erreur au chargemen
 
 Depuis `skill.py`, importez vos autres modules par leur chemin complet
 (`atlas.skills.notes.helpers`) : les imports relatifs ne fonctionnent pas.
+
+## Stocker des données (facultatif)
+
+Une compétence qui garde des données reçoit un `SkillContext` à sa création. Elle n'ouvre jamais
+la base elle-même : le cœur l'ouvre, applique les migrations, puis lui donne la connexion.
+
+```python
+from atlas.skills.base import Skill, SkillContext, tool
+
+
+class NotesSkill(Skill):
+    name = "notes"
+
+    def __init__(self, context: SkillContext | None = None) -> None:
+        super().__init__(context)
+        # Échoue au chargement, avec un message clair, si le contexte manque.
+        self._db = self.require_context().connection
+
+    @tool(effect="notes.write")
+    def add(self, text: str) -> str:
+        """Enregistre une note."""
+        # Requêtes toujours paramétrées (?), jamais de texte collé dans le SQL.
+        self._db.execute("INSERT INTO notes (text) VALUES (?)", (text,))
+        return f"Note enregistrée : {text}"
+```
+
+Le schéma vit dans `src/atlas/skills/notes/migrations/`, un fichier par évolution :
+
+```sql
+-- 0001_create_notes.sql
+CREATE TABLE notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    text TEXT NOT NULL
+);
+```
+
+- Les fichiers se nomment `NNNN_nom.sql` : quatre chiffres, à partir de `0001`, sans trou ni
+  doublon, nom en minuscules. Le cœur découvre le dossier `migrations/` tout seul.
+- Chaque migration s'exécute dans une transaction, avec l'inscription de sa version : si une
+  instruction échoue, tout est annulé et ATLAS refuse de démarrer en nommant le fichier fautif.
+- N'écrivez ni `BEGIN` ni `COMMIT` (refusés) et ne modifiez jamais une migration déjà appliquée :
+  son empreinte est vérifiée. Pour changer le schéma, ajoutez `0002_...sql`.
+- La numérotation est propre à chaque compétence : la vôtre commence à `0001`, quoi qu'en disent
+  les autres. Les tables d'une compétence portent un nom qui ne heurte pas celles des autres.
+- Les migrations d'une compétence qui échoue au chargement ne sont pas appliquées.
+- Dans les tests, utilisez `connect(":memory:")` et `apply_migrations` avec
+  `MigrationSource("notes", <dossier migrations>)` (voir `skills/tasks/tests/`).
 
 ## 3. Ajouter les tests
 

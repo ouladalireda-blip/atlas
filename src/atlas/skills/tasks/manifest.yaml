@@ -1,0 +1,35 @@
+name: tasks
+version: "0.1.0"
+description: Gère une liste de tâches personnelle (ajouter, lister, terminer, supprimer).
+examples:
+  - Ajoute une tâche « payer le loyer » pour le 5 décembre.
+  - Quelles sont mes tâches en cours ?
+  - Marque la tâche 3 comme terminée.
+  - Supprime la tâche 2.
+requires_approval:
+  - tasks.delete
+# Les mots de tasks.delete sont des verbes : un participe qui figure dans le vocabulaire d'un
+# effet désigne cet effet (voir l'ADR 0002), ce qui évite d'exiger aussi un reçu tasks.write
+# pour « la tâche est supprimée ».
+claims:
+  tasks.write:
+    - tâche
+    - task
+    - todo
+    - to-do
+    - liste de tâches
+  tasks.delete:
+    - supprimé
+    - supprimée
+    - supprimés
+    - supprimées
+    - supprime
+    - effacé
+    - effacée
+    - effacés
+    - effacées
+    - efface
+    - deleted
+    - removed
+    - delete
+    - remove

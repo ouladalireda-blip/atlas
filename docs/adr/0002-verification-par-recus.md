@@ -81,7 +81,13 @@ La vérification réduit le risque, elle ne l'élimine pas.
 - Le rappel d'une action passée (« je l'ai ajouté hier ») est signalé, car seuls les reçus du tour
   courant sont fournis.
 - Un mot présent dans le vocabulaire de deux effets exige un reçu pour chacun d'eux. Chaque effet
-  doit donc avoir ses propres mots.
+  doit donc avoir ses propres mots. Exception : si le participe (ou le verbe au présent) est
+  lui-même un mot du vocabulaire d'un effet (« supprimé » pour `tasks.delete`), il désigne cette
+  action et seuls les effets qui le listent comptent. C'est ce qui évite que « la tâche est
+  supprimée » exige aussi un reçu d'ajout parce que « tâche » appartient à `tasks.write`.
+  Conséquence : un verbe listé dans le vocabulaire d'une compétence vaut pour toutes. Une future
+  compétence agenda qui supprime des événements verrait « événement supprimé » exiger un reçu
+  `tasks.delete`. Il faudra alors lier les verbes à leur domaine (piste : un champ du manifeste).
 
 **Preuve incomplète :**
 

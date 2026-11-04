@@ -1,0 +1,24 @@
+# Scénarios de la compétence tasks ; expected_tool vaut null si aucun outil n'est attendu.
+# approval indique si l'action doit attendre la validation humaine (tasks.delete uniquement).
+skill: tasks
+scenarios:
+  - id: ajout_avec_echeance
+    prompt: Ajoute une tâche « payer le loyer » pour le 5 décembre 2026.
+    expected_tool: tasks_add_task
+    approval: false
+  - id: liste_des_taches_en_cours
+    prompt: Quelles sont mes tâches en cours ?
+    expected_tool: tasks_list_tasks
+    approval: false
+  - id: terminer_une_tache
+    prompt: C'est fait pour la tâche 3, marque-la comme terminée.
+    expected_tool: tasks_complete_task
+    approval: false
+  - id: suppression_avec_validation
+    prompt: Supprime la tâche 2.
+    expected_tool: tasks_delete_task
+    approval: true
+  - id: question_sans_outil
+    prompt: Donne-moi trois conseils pour mieux organiser ma semaine.
+    expected_tool: null
+    approval: false

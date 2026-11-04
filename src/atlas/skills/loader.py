@@ -9,12 +9,14 @@ from types import ModuleType
 
 import yaml
 
-from atlas.skills.base import Skill, ToolSpec
+from atlas.skills.base import Skill, SkillContext, ToolSpec
 from atlas.skills.manifest import SkillManifest
+from atlas.storage.migrator import MigrationSource
 
 SKILLS_DIR = Path(__file__).parent
 MANIFEST_FILE = "manifest.yaml"
 MODULE_FILE = "skill.py"
+MIGRATIONS_DIR = "migrations"
 
 
 class SkillLoadError(Exception):
@@ -36,6 +38,8 @@ class LoadedSkill:
     manifest: SkillManifest
     skill: Skill
     tools: list[ToolSpec]
+    # Dossier des migrations de la compétence, s'il existe.
+    migrations: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -53,6 +57,14 @@ class SkillRegistry:
             for effect, words in loaded.manifest.claims.items():
                 vocabulary[effect] = list(dict.fromkeys([*vocabulary.get(effect, []), *words]))
         return vocabulary
+
+    def migration_sources(self) -> list[MigrationSource]:
+        """Retourne les migrations des compétences chargées, sans que le cœur les connaisse."""
+        return [
+            MigrationSource(loaded.manifest.name, loaded.migrations)
+            for loaded in self.skills
+            if loaded.migrations is not None
+        ]
 
     def requires_approval(self) -> frozenset[str]:
         """Fusionne les effets soumis à validation humaine de toutes les compétences."""
@@ -89,7 +101,7 @@ def _find_skill_class(module: ModuleType) -> type[Skill]:
     return classes[0]
 
 
-def _load_skill(folder: Path) -> LoadedSkill:
+def _load_skill(folder: Path, context: SkillContext | None) -> LoadedSkill:
     """Charge une compétence ; toute anomalie remonte sous forme d'exception."""
     for filename in (MANIFEST_FILE, MODULE_FILE):
         if not (folder / filename).is_file():
@@ -102,10 +114,16 @@ def _load_skill(folder: Path) -> LoadedSkill:
         raise SkillLoadError(
             f"Le manifeste indique {manifest.name!r}, mais la classe indique {class_name!r}."
         )
-    skill = skill_class()
+    skill = skill_class(context)
     tools = skill.tools()
     _check_declared_effects(manifest, tools)
-    return LoadedSkill(manifest=manifest, skill=skill, tools=tools)
+    migrations = folder / MIGRATIONS_DIR
+    return LoadedSkill(
+        manifest=manifest,
+        skill=skill,
+        tools=tools,
+        migrations=migrations if migrations.is_dir() else None,
+    )
 
 
 def _check_declared_effects(manifest: SkillManifest, tools: list[ToolSpec]) -> None:
@@ -132,15 +150,20 @@ def _check_unique_names(candidate: LoadedSkill, loaded: list[LoadedSkill]) -> No
         raise SkillLoadError(f"Noms d'outils déjà utilisés : {', '.join(duplicates)}.")
 
 
-def load_skills(skills_dir: Path = SKILLS_DIR) -> SkillRegistry:
-    """Charge chaque compétence ; une compétence cassée n'empêche pas les autres."""
+def load_skills(
+    skills_dir: Path = SKILLS_DIR, context: SkillContext | None = None
+) -> SkillRegistry:
+    """Charge chaque compétence ; une compétence cassée n'empêche pas les autres.
+
+    Le contexte est transmis à chaque compétence à sa création.
+    """
     loaded: list[LoadedSkill] = []
     errors: list[SkillError] = []
     for folder in sorted(path for path in skills_dir.iterdir() if path.is_dir()):
         if not (folder / MANIFEST_FILE).exists() and not (folder / MODULE_FILE).exists():
             continue
         try:
-            candidate = _load_skill(folder)
+            candidate = _load_skill(folder, context)
             _check_unique_names(candidate, loaded)
         except Exception as error:
             errors.append(SkillError(folder.name, f"{type(error).__name__} : {error}"))

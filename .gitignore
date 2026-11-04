@@ -223,3 +223,8 @@ __marimo__/
    .env
 data/
    
+# Bases SQLite locales (reçus, tâches, consommation) : données personnelles.
+*.db
+*.db-wal
+*.db-shm
+*.db-journal

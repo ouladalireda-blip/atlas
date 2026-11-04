@@ -305,6 +305,26 @@ def _claim_limit(tokens: Sequence[str]) -> int:
     return len(tokens)
 
 
+def _effects_around(tokens: Sequence[str], index: int, vocabulary: ClaimVocabulary) -> list[str]:
+    """Retourne les effets visés par le verbe ou participe à cette position.
+
+    Si ce mot est lui-même dans le vocabulaire d'un effet (« supprimé » pour tasks.delete), il
+    désigne l'action et seuls ces effets comptent. Sinon, tout effet dont un mot est proche
+    convient : les noms (« tâche ») ne disent pas quelle action a eu lieu.
+    """
+    near = [
+        effect
+        for effect, words in vocabulary.items()
+        if any(_is_near(tokens, index, _tokens(word)) for word in words)
+    ]
+    own = [
+        effect
+        for effect in near
+        if any(_matches_at(tokens, index, _tokens(word)) for word in vocabulary[effect])
+    ]
+    return own or near
+
+
 def _claimed_effects(tokens: Sequence[str], vocabulary: ClaimVocabulary) -> list[str | None]:
     """Retourne les effets affirmés par une proposition ; None désigne la règle générique."""
     limit = _claim_limit(tokens)
@@ -314,11 +334,7 @@ def _claimed_effects(tokens: Sequence[str], vocabulary: ClaimVocabulary) -> list
         effects.append(None)
     for index in range(limit):
         if _is_participle(tokens, index) or index in present:
-            effects.extend(
-                effect
-                for effect, words in vocabulary.items()
-                if any(_is_near(tokens, index, _tokens(word)) for word in words)
-            )
+            effects.extend(_effects_around(tokens, index, vocabulary))
     return effects
 
 

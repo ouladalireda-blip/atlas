@@ -6,7 +6,7 @@ import pytest
 from rich.console import Console
 from typer.testing import CliRunner
 
-from atlas.core.agent import Agent, TurnResult, Verdict
+from atlas.core.agent import Agent, ApprovalHandler, TurnResult, Verdict
 from atlas.core.receipts import InMemoryReceiptStore, Receipt, ReceiptStatus
 from atlas.core.usage import UsageLog
 from atlas.interfaces import cli
@@ -160,6 +160,7 @@ def test_agent_built_by_chat_uses_settings(monkeypatch: pytest.MonkeyPatch) -> N
             max_tool_rounds: int,
             history_messages: int,
             address_form: str,
+            approver: ApprovalHandler,
         ) -> None:
             captured.update(rounds=max_tool_rounds, history=history_messages, form=address_form)
             super().__init__(
@@ -170,6 +171,7 @@ def test_agent_built_by_chat_uses_settings(monkeypatch: pytest.MonkeyPatch) -> N
                 max_tool_rounds=max_tool_rounds,
                 history_messages=history_messages,
                 address_form=address_form,
+                approver=approver,
             )
 
     use_llm(monkeypatch, ScriptedLLM([]))
@@ -190,7 +192,7 @@ def test_loading_errors_are_displayed(monkeypatch: pytest.MonkeyPatch) -> None:
         skills=[], tools=[], errors=[SkillError("cassee", "manifeste [x] invalide")]
     )
     use_llm(monkeypatch, ScriptedLLM([]))
-    monkeypatch.setattr(cli, "load_skills", lambda: broken)
+    monkeypatch.setattr(cli, "load_skills", lambda **kwargs: broken)
 
     result = runner.invoke(cli.app, ["chat"], input="exit\n")
 

@@ -92,12 +92,15 @@ qui lit des données personnelles les envoie aussi au fournisseur choisi.
   affirmation sans mot du vocabulaire passe. La boucle ne fait que l'appliquer.
 - **Injection de consignes.** Un résultat d'outil hostile peut influencer le modèle ; seuls les
   effets exigeant une validation humaine sont réellement protégés.
-- **Pas de validation humaine encore.** Un outil à effet soumis à validation reçoit un reçu
-  `pending_approval` et n'est pas exécuté ; rien ne propose encore de l'approuver.
+- **Approbation : une seule interface.** `Agent` reçoit un `approver` (une fonction reçu → oui/non).
+  `atlas chat` en fournit un ; sans approbateur, l'action reste `pending_approval`. Un approbateur
+  qui échoue vaut refus. Le reçu `pending_approval` n'est jamais modifié : la décision crée un
+  nouveau reçu (`ok`, `error` ou `rejected`) lié au premier par `parent_id`. Une approbation ne
+  peut donc pas être rejouée plus tard : la session qui a posé la question est la seule à y répondre.
 - **Budget approximatif.** Le contrôle a lieu avant chaque appel : le dernier peut dépasser le
   budget. Sans coût communiqué (Ollama, ou réponse sans `usage.cost`), seul le budget de tokens
-  s'applique. Le journal est en mémoire et repart de zéro à chaque lancement : le budget
-  « quotidien » n'est donc pas encore partagé entre deux lancements.
+  s'applique. Le journal est conservé dans SQLite : le budget quotidien est partagé entre les
+  lancements. Si l'écriture échoue, la consommation reste comptée en mémoire pour le processus.
 - **Pas de flux continu** : la réponse s'affiche en entier à la fin du tour.
 - **Historique court et textuel.** Seuls les messages utilisateur et les réponses finales sont
   gardés (`history_messages`) ; les reçus d'un tour précédent ne prouvent rien pour le suivant.

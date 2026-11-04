@@ -5,9 +5,11 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from atlas.config import Settings
 from atlas.interfaces import cli
-from atlas.skills.base import call
+from atlas.skills.base import SkillContext, call
 from atlas.skills.loader import load_skills
+from atlas.storage.database import IN_MEMORY, connect
 
 FIXTURES = Path(__file__).parent / "fixtures" / "skills"
 
@@ -38,12 +40,24 @@ def write_skill(root: Path, folder: str, manifest: str, code: str) -> None:
     (path / "skill.py").write_text(code, encoding="utf-8")
 
 
-def test_discovers_clock_skill() -> None:
-    registry = load_skills()
+def test_discovers_clock_and_tasks_skills() -> None:
+    context = SkillContext(connect(IN_MEMORY), Settings(_env_file=None))
+
+    registry = load_skills(context=context)
 
     assert registry.errors == []
-    assert "clock" in [loaded.manifest.name for loaded in registry.skills]
+    names = [loaded.manifest.name for loaded in registry.skills]
+    assert {"clock", "tasks"} <= set(names)
     assert "clock_now" in [spec.name for spec in registry.tools]
+    assert "tasks_add_task" in [spec.name for spec in registry.tools]
+
+
+def test_skill_needing_a_context_is_reported_when_none_is_given() -> None:
+    registry = load_skills()
+
+    assert [error.folder for error in registry.errors] == ["tasks"]
+    assert "contexte" in registry.errors[0].message
+    assert "clock" in [loaded.manifest.name for loaded in registry.skills]
 
 
 def test_broken_manifest_is_reported_without_blocking_other_skills() -> None:
@@ -210,7 +224,7 @@ def test_cli_lists_skills() -> None:
 def test_cli_shows_skill_without_tools(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     code = "from atlas.skills.base import Skill\nclass EmptySkill(Skill):\n    name = 'empty'\n"
     write_skill(tmp_path, "empty", manifest_text("empty"), code)
-    monkeypatch.setattr(cli, "load_skills", lambda: load_skills(tmp_path))
+    monkeypatch.setattr(cli, "load_skills", lambda **kwargs: load_skills(tmp_path))
 
     result = CliRunner().invoke(cli.app, ["skills"])
 
@@ -219,7 +233,7 @@ def test_cli_shows_skill_without_tools(tmp_path: Path, monkeypatch: pytest.Monke
 
 
 def test_cli_shows_loading_errors(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(cli, "load_skills", lambda: load_skills(FIXTURES))
+    monkeypatch.setattr(cli, "load_skills", lambda **kwargs: load_skills(FIXTURES))
 
     result = CliRunner().invoke(cli.app, ["skills"])
 

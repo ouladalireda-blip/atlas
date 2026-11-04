@@ -1,19 +1,28 @@
 """Interface en ligne de commande d'ATLAS."""
 
+import json
+import sqlite3
+
 import typer
 from rich.console import Console, Group, RenderableType
 from rich.markdown import Markdown
+from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
 from atlas import __version__
 from atlas.config import Settings
-from atlas.core.agent import Agent, TurnResult, Verdict
-from atlas.core.receipts import InMemoryReceiptStore, ReceiptStatus
+from atlas.core.agent import Agent, ApprovalHandler, TurnResult, Verdict
+from atlas.core.receipts import Receipt, ReceiptStatus
 from atlas.core.usage import UsageLog
 from atlas.llm.base import LLMConfigError
 from atlas.llm.factory import build_client
+from atlas.skills.base import SkillContext
 from atlas.skills.loader import SkillRegistry, load_skills
+from atlas.storage.database import IN_MEMORY, StorageError, connect
+from atlas.storage.migrator import MigrationError, apply_migrations, core_source
+from atlas.storage.receipts import SqliteReceiptStore
+from atlas.storage.usage import SqliteUsageStore
 
 app = typer.Typer(help="ATLAS : agent IA personnel, local-first.", no_args_is_help=True)
 
@@ -57,11 +66,20 @@ def _errors_table(registry: SkillRegistry) -> Table:
 @app.command()
 def skills() -> None:
     """Liste les compétences, leurs outils, leurs effets et les erreurs de chargement."""
-    registry = load_skills()
     console = Console()
-    console.print(_skills_table(registry))
-    if registry.errors:
-        console.print(_errors_table(registry))
+    # Base en mémoire : lister les compétences ne doit ni créer ni modifier de fichier.
+    connection = connect(IN_MEMORY)
+    try:
+        registry = load_skills(context=SkillContext(connection, Settings()))
+        try:
+            apply_migrations(connection, [core_source(), *registry.migration_sources()])
+        except MigrationError as error:
+            console.print(Text(f"Migrations invalides : {error}", style="bold red"))
+        console.print(_skills_table(registry))
+        if registry.errors:
+            console.print(_errors_table(registry))
+    finally:
+        connection.close()
 
 
 VERDICT_STYLES = {
@@ -75,7 +93,10 @@ STATUS_STYLES = {
     ReceiptStatus.OK: "green",
     ReceiptStatus.ERROR: "red",
     ReceiptStatus.PENDING_APPROVAL: "yellow",
+    ReceiptStatus.REJECTED: "red",
 }
+YES_ANSWERS = {"o", "oui", "y", "yes"}
+NO_ANSWERS = {"n", "non", "no"}
 EXIT_WORDS = {"exit", "quit"}
 
 
@@ -93,7 +114,10 @@ def render_turn(result: TurnResult, usage: UsageLog) -> RenderableType:
             table.add_column(column)
         for receipt in result.receipts:
             style = STATUS_STYLES[receipt.status]
-            table.add_row(f"n°{receipt.id}", receipt.tool, Text(receipt.status.value, style=style))
+            link = f" ← n°{receipt.parent_id}" if receipt.parent_id else ""
+            table.add_row(
+                f"n°{receipt.id}{link}", receipt.tool, Text(receipt.status.value, style=style)
+            )
         parts.append(table)
     label, style = VERDICT_STYLES[result.verdict]
     parts.append(Text.assemble("Verdict : ", (label, style)))
@@ -107,6 +131,44 @@ def render_turn(result: TurnResult, usage: UsageLog) -> RenderableType:
     return Group(*parts)
 
 
+def make_approver(console: Console) -> ApprovalHandler:
+    """Crée la fonction qui montre l'action en attente et demande l'accord de l'utilisateur.
+
+    Dans le doute (entrée interrompue, fin de saisie), la réponse est non.
+    """
+
+    def approve(receipt: Receipt) -> bool:
+        arguments = json.dumps(receipt.args, ensure_ascii=False, indent=2, default=str)
+        details = Group(
+            Text(f"Outil : {receipt.tool}"),
+            Text(f"Effet : {receipt.effect}"),
+            Text(f"Arguments : {arguments}"),
+        )
+        console.print(Panel(details, title="Approbation requise", border_style="yellow"))
+        while True:
+            try:
+                answer = console.input("Approuver ? (o/n) ").strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                console.print("Saisie interrompue : action refusée.", style="yellow")
+                return False
+            if answer in YES_ANSWERS:
+                return True
+            if answer in NO_ANSWERS:
+                return False
+            console.print("Réponds par o (oui) ou n (non).", style="dim")
+
+    return approve
+
+
+def _open_storage(settings: Settings, console: Console) -> sqlite3.Connection:
+    """Ouvre la base, ou quitte avec un message clair."""
+    try:
+        return connect(settings.database_path)
+    except StorageError as error:
+        console.print(Text(f"Base inutilisable : {error}", style="bold red"))
+        raise typer.Exit(code=1) from error
+
+
 @app.command()
 def chat() -> None:
     """Ouvre une conversation avec ATLAS ; « exit » pour quitter."""
@@ -117,19 +179,38 @@ def chat() -> None:
     except LLMConfigError as error:
         console.print(Text(f"Configuration invalide : {error}", style="bold red"))
         raise typer.Exit(code=1) from error
-    registry = load_skills()
-    if registry.errors:
-        console.print(_errors_table(registry))
-    usage = UsageLog(settings.daily_token_budget, settings.daily_cost_budget)
-    agent = Agent(
-        client,
-        registry,
-        InMemoryReceiptStore(),
-        usage,
-        max_tool_rounds=settings.max_tool_rounds,
-        history_messages=settings.history_messages,
-        address_form=settings.address_form,
-    )
+    connection = _open_storage(settings, console)
+    try:
+        registry = load_skills(context=SkillContext(connection, settings))
+        try:
+            apply_migrations(connection, [core_source(), *registry.migration_sources()])
+        except MigrationError as error:
+            console.print(Text(f"Migrations en échec : {error}", style="bold red"))
+            raise typer.Exit(code=1) from error
+        if registry.errors:
+            console.print(_errors_table(registry))
+        usage = UsageLog(
+            settings.daily_token_budget,
+            settings.daily_cost_budget,
+            store=SqliteUsageStore(connection),
+        )
+        agent = Agent(
+            client,
+            registry,
+            SqliteReceiptStore(connection),
+            usage,
+            max_tool_rounds=settings.max_tool_rounds,
+            history_messages=settings.history_messages,
+            address_form=settings.address_form,
+            approver=make_approver(console),
+        )
+        _conversation(console, agent, usage)
+    finally:
+        connection.close()
+
+
+def _conversation(console: Console, agent: Agent, usage: UsageLog) -> None:
+    """Boucle de saisie : une ligne, un tour, jusqu'à « exit »."""
     console.print("ATLAS est prêt. Tape « exit » pour quitter.", style="dim")
     while True:
         try:

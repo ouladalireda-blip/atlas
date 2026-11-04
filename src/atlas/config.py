@@ -1,5 +1,6 @@
 """Configuration d'ATLAS, lue depuis l'environnement et le fichier .env."""
 
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr
@@ -17,6 +18,9 @@ class Settings(BaseSettings):
     )
 
     log_level: str = "INFO"
+
+    # Base SQLite locale ; le dossier est créé si besoin. Ne jamais la commiter (data/ est ignoré).
+    database_path: Path = Path("data/atlas.db")
 
     # Modèle de langage. La cohérence (clé, modèle) est contrôlée par build_client.
     provider: Literal["openrouter", "ollama"] = "openrouter"

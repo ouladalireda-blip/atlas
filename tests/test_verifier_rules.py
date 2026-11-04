@@ -155,3 +155,32 @@ def test_ne_with_another_negation_stays_a_negation(reply: str) -> None:
 def test_ne_que_does_not_lift_other_blockers() -> None:
     assert effects("Je ne peux ajouter que l'événement.") == []
     assert effects("Je n'ajouterai que l'événement.") == []
+
+
+TASKS = {
+    "tasks.write": ["tâche", "task"],
+    "tasks.delete": ["supprimé", "supprimée", "supprime"],
+}
+
+
+def task_effects(reply: str) -> list[str | None]:
+    return [claim.effect for claim in detect_claims(reply, TASKS)]
+
+
+def test_a_verb_that_is_a_vocabulary_word_names_its_own_effect() -> None:
+    # « supprimée » est un mot de tasks.delete : le nom « tâche » ne suffit pas à viser tasks.write.
+    assert task_effects("La tâche est supprimée.") == ["tasks.delete"]
+    assert task_effects("Je supprime la tâche 2.") == ["tasks.delete"]
+
+
+def test_nouns_alone_still_match_every_effect_they_belong_to() -> None:
+    assert task_effects("La tâche est ajoutée.") == ["tasks.write"]
+    shared = {"a.write": ["tâche"], "a.delete": ["tâche"]}
+    effects = [claim.effect for claim in detect_claims("La tâche est ajoutée.", shared)]
+    assert sorted(str(effect) for effect in effects) == ["a.delete", "a.write"]
+
+
+def test_both_actions_in_one_sentence_need_both_receipts() -> None:
+    effects = task_effects("J'ai ajouté la tâche et supprimé l'ancienne.")
+
+    assert sorted(str(effect) for effect in effects) == ["tasks.delete", "tasks.write"]

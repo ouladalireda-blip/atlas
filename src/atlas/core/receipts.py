@@ -13,10 +13,15 @@ class ReceiptStatus(StrEnum):
     OK = "ok"
     ERROR = "error"
     PENDING_APPROVAL = "pending_approval"
+    REJECTED = "rejected"
 
 
 class Receipt(BaseModel):
-    """Reçu immuable ; id vaut 0 tant que le store ne l'a pas enregistré."""
+    """Reçu immuable ; id vaut 0 tant que le store ne l'a pas enregistré.
+
+    parent_id relie le reçu d'une décision humaine (ok, error ou rejected) au reçu
+    pending_approval qui l'a provoquée.
+    """
 
     model_config = ConfigDict(frozen=True)
 
@@ -28,6 +33,7 @@ class Receipt(BaseModel):
     args: Any
     status: ReceiptStatus
     result: Any = None
+    parent_id: int | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 

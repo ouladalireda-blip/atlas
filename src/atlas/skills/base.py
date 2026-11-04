@@ -2,11 +2,14 @@
 
 import inspect
 import re
+import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, ClassVar, get_type_hints
 
 from pydantic import BaseModel, ConfigDict, ValidationError, create_model
+
+from atlas.config import Settings
 
 # Seule définition du format d'un effet, « domaine.action » : calendar.write par exemple.
 EFFECT_PATTERN = r"^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$"
@@ -112,10 +115,36 @@ def _build_spec(skill_name: str, method_name: str, method: Callable[..., Any]) -
     )
 
 
+class SkillContextError(RuntimeError):
+    """Une compétence a besoin de son contexte (base, réglages) et ne l'a pas reçu."""
+
+
+@dataclass(frozen=True)
+class SkillContext:
+    """Ce que le cœur donne à une compétence : la connexion à la base et les réglages.
+
+    Une compétence n'ouvre jamais la base elle-même : le cœur a déjà appliqué ses migrations.
+    """
+
+    connection: sqlite3.Connection
+    settings: Settings
+
+
 class Skill:
     """Classe de base d'une compétence ; les sous-classes définissent name."""
 
     name: ClassVar[str]
+
+    def __init__(self, context: SkillContext | None = None) -> None:
+        self.context = context
+
+    def require_context(self) -> SkillContext:
+        """Retourne le contexte, ou échoue clairement si la compétence a été créée sans lui."""
+        if self.context is None:
+            raise SkillContextError(
+                f"La compétence {self.name} a besoin d'un contexte (base de données, réglages)."
+            )
+        return self.context
 
     def tools(self) -> list[ToolSpec]:
         """Retourne les outils marqués, sans évaluer les propriétés de l'instance."""

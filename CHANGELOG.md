@@ -39,9 +39,20 @@ et ce projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   « ne … que » comme une restriction.
 - Les cas de l'éval ont un groupe (`base`, `variantes`) mesuré séparément par le script.
 - Réglage `ATLAS_ADDRESS_FORM` (`tu` ou `vous`, défaut `tu`) injecté dans le prompt système.
+- Stockage SQLite (`ATLAS_DATABASE_PATH`) avec migrations numérotées appliquées dans une
+  transaction ; migrations du cœur et migrations propres à chaque compétence.
+- `SqliteReceiptStore`, store par défaut de `atlas chat`, et journal de consommation en SQLite.
+- `SkillContext` (connexion et réglages) transmis aux compétences à leur création.
+- Compétence `tasks` : `add_task`, `list_tasks`, `complete_task`, `delete_task` ; la suppression
+  demande une validation humaine. Scénarios dans `evals/tasks.yaml`.
+- Approbation dans `atlas chat` : « Approuver ? (o/n) », nouveau reçu lié au reçu en attente,
+  statut `rejected` en cas de refus.
+- Les bases `*.db` (et leurs fichiers WAL) sont ignorées par git.
 
 ### Modifié
 
+- Le vérificateur traite un verbe qui figure dans le vocabulaire d'un effet comme désignant cet
+  effet seul (l'éval est inchangée).
 - `atlas chat` affiche les réponses en Markdown, avec une ligne vide avant les reçus et le verdict.
 - Le prompt système demande des réponses concises et interdit de revenir sur un sujet clos.
 - `ToolExecutor` transforme `SystemExit` en reçu `error` et accepte des arguments illisibles.

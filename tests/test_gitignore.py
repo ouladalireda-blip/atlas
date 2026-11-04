@@ -13,7 +13,17 @@ def is_ignored(path: str) -> bool:
     return subprocess.run(command, cwd=ROOT, check=False).returncode == 0
 
 
-@pytest.mark.parametrize("path", ["data/test.db", "data/sous-dossier/notes.txt", ".env"])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "data/test.db",
+        "data/sous-dossier/notes.txt",
+        ".env",
+        "ailleurs/atlas.db",
+        "atlas.db-wal",
+        "atlas.db-shm",
+    ],
+)
 def test_private_files_are_ignored(path: str) -> None:
     assert is_ignored(path)
 
