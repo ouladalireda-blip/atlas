@@ -63,7 +63,7 @@ def make_agent(
     *,
     skill: AgendaSkill | None = None,
     usage: UsageLog | None = None,
-    **options: int,
+    **options: Any,
 ) -> tuple[Agent, ScriptedLLM, AgendaSkill, InMemoryReceiptStore]:
     skill = skill or AgendaSkill()
     manifest = SkillManifest(
@@ -507,3 +507,39 @@ def test_turn_result_is_immutable() -> None:
 
     with pytest.raises(Exception, match="frozen"):
         result.reply = "autre"  # type: ignore[misc]
+
+
+def test_address_form_defaults_to_tu_and_vous_is_configurable() -> None:
+    tu_agent, tu_llm, _, _ = make_agent([text("a")])
+    vous_agent, vous_llm, _, _ = make_agent([text("a")], address_form="vous")
+
+    tu_agent.run_turn("Salut")
+    vous_agent.run_turn("Bonjour")
+
+    assert "tutoie l'utilisateur" in tu_llm.calls[0][0]["content"]
+    assert "vouvoie l'utilisateur" in vous_llm.calls[0][0]["content"]
+    assert "tutoie" not in vous_llm.calls[0][0]["content"]
+
+
+def test_system_prompt_is_identical_at_every_turn() -> None:
+    agent, llm, _, _ = make_agent(
+        [text("a"), tool_calls(("agenda_list_events", {})), text("b"), text("c")],
+        address_form="vous",
+    )
+
+    for message in ("un", "deux", "trois"):
+        agent.run_turn(message)
+
+    prompts = {call[0]["content"] for call in llm.calls}
+    assert len(llm.calls) == 4
+    assert len(prompts) == 1
+
+
+def test_unknown_address_form_is_refused() -> None:
+    with pytest.raises(ValueError, match="Forme d'adresse inconnue"):
+        make_agent([], address_form="toi")  # type: ignore[arg-type]
+
+
+def test_system_prompt_asks_for_concise_answers_and_closed_topics() -> None:
+    assert "concises" in SYSTEM_PROMPT
+    assert "Ne reviens pas sur un sujet clos" in SYSTEM_PROMPT

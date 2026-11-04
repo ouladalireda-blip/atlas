@@ -32,6 +32,7 @@ def test_defaults() -> None:
     assert config.timeout == 60
     assert config.max_tool_rounds == 6
     assert config.history_messages == 16
+    assert config.address_form == "tu"
     assert config.daily_token_budget > 0
     assert config.daily_cost_budget > 0
 
@@ -59,6 +60,7 @@ def test_api_key_is_hidden_in_repr() -> None:
     "invalid",
     [
         {"provider": "inconnu"},
+        {"address_form": "toi"},
         {"timeout": 0},
         {"timeout": -1},
         {"max_tool_rounds": 0},

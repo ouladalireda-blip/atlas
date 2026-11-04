@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     # Boucle agent.
     max_tool_rounds: int = Field(default=6, ge=1)
     history_messages: int = Field(default=16, ge=0)
+    address_form: Literal["tu", "vous"] = "tu"
 
     # Budgets quotidiens : un tour est refusé dès qu'un des deux est atteint.
     daily_token_budget: int = Field(default=200_000, gt=0)

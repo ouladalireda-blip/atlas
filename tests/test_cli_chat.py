@@ -147,7 +147,7 @@ def test_receipt_status_is_colored_and_unknown_cost_is_shown() -> None:
 
 def test_agent_built_by_chat_uses_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     """Les réglages de la boucle viennent de Settings, pas de valeurs codées en dur."""
-    captured: dict[str, int] = {}
+    captured: dict[str, int | str] = {}
 
     class SpyAgent(Agent):
         def __init__(
@@ -159,8 +159,9 @@ def test_agent_built_by_chat_uses_settings(monkeypatch: pytest.MonkeyPatch) -> N
             *,
             max_tool_rounds: int,
             history_messages: int,
+            address_form: str,
         ) -> None:
-            captured.update(rounds=max_tool_rounds, history=history_messages)
+            captured.update(rounds=max_tool_rounds, history=history_messages, form=address_form)
             super().__init__(
                 llm,
                 registry,
@@ -168,16 +169,18 @@ def test_agent_built_by_chat_uses_settings(monkeypatch: pytest.MonkeyPatch) -> N
                 usage_log,
                 max_tool_rounds=max_tool_rounds,
                 history_messages=history_messages,
+                address_form=address_form,
             )
 
     use_llm(monkeypatch, ScriptedLLM([]))
     monkeypatch.setattr(cli, "Agent", SpyAgent)
     monkeypatch.setenv("ATLAS_MAX_TOOL_ROUNDS", "3")
     monkeypatch.setenv("ATLAS_HISTORY_MESSAGES", "4")
+    monkeypatch.setenv("ATLAS_ADDRESS_FORM", "vous")
 
     runner.invoke(cli.app, ["chat"], input="exit\n")
 
-    assert captured == {"rounds": 3, "history": 4}
+    assert captured == {"rounds": 3, "history": 4, "form": "vous"}
 
 
 def test_loading_errors_are_displayed(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -194,3 +197,29 @@ def test_loading_errors_are_displayed(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result.exit_code == 0
     assert "cassee" in result.output
     assert "manifeste [x] invalide" in result.output
+
+
+def test_reply_is_rendered_as_markdown(monkeypatch: pytest.MonkeyPatch) -> None:
+    use_llm(monkeypatch, ScriptedLLM([text("Voici **un point** important.")]))
+
+    result = runner.invoke(cli.app, ["chat"], input="x\nexit\n")
+
+    assert "Voici un point important." in result.output
+    assert "**" not in result.output
+
+
+def test_blank_line_separates_reply_from_verdict_block() -> None:
+    plain = render(make_result(Verdict.VERIFIED, ReceiptStatus.OK))
+    lines = [line.strip() for line in plain.replace("\x1b[0m", "").splitlines()]
+    reply_at = next(i for i, line in enumerate(lines) if "Réponse." in line)
+
+    assert lines[reply_at + 1] == ""
+
+
+def test_blank_line_also_without_receipts() -> None:
+    result = make_result(Verdict.NO_CLAIMS).model_copy(update={"receipts": []})
+    lines = [line.strip() for line in render(result).splitlines()]
+    reply_at = next(i for i, line in enumerate(lines) if "Réponse." in line)
+
+    assert lines[reply_at + 1] == ""
+    assert any(line.startswith("Verdict") for line in lines[reply_at + 2 :])

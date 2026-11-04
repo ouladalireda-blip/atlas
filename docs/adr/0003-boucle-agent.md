@@ -32,6 +32,10 @@ Verdicts : `verified` (affirmations toutes prouvées), `corrected` (une correcti
 `blocked` (réponse remplacée), `no_claims` (aucune affirmation d'action détectée), `error` (le tour
 n'a pas pu aboutir).
 
+**Le prompt système est fixe.** Il est calculé une fois par `Agent` à partir de `address_form`
+(`tu` ou `vous`) et reste identique à chaque tour, ce qui évite de faire varier le contexte et
+facilite la mise en cache par le fournisseur.
+
 **Aucune exception ne remonte jusqu'à l'utilisateur.** Limite de tours d'outils, réponse vide,
 `LLMUnavailable`, budget atteint ou bug inattendu donnent un message honnête qui dit pourquoi le
 tour s'arrête et ce qui a réellement eu lieu (liste des reçus). Si un outil a agi avant la panne,

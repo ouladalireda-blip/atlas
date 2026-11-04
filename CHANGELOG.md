@@ -38,9 +38,12 @@ et ce projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   formules « je te confirme que », « je t'assure que » et « I can confirm », et traite
   « ne … que » comme une restriction.
 - Les cas de l'éval ont un groupe (`base`, `variantes`) mesuré séparément par le script.
+- Réglage `ATLAS_ADDRESS_FORM` (`tu` ou `vous`, défaut `tu`) injecté dans le prompt système.
 
 ### Modifié
 
+- `atlas chat` affiche les réponses en Markdown, avec une ligne vide avant les reçus et le verdict.
+- Le prompt système demande des réponses concises et interdit de revenir sur un sujet clos.
 - `ToolExecutor` transforme `SystemExit` en reçu `error` et accepte des arguments illisibles.
 - Le vérificateur traite les conditions comme des marqueurs bloquants pour le reste de la phrase.
 

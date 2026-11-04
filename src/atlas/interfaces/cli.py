@@ -2,6 +2,7 @@
 
 import typer
 from rich.console import Console, Group, RenderableType
+from rich.markdown import Markdown
 from rich.table import Table
 from rich.text import Text
 
@@ -84,7 +85,8 @@ def _dollars(amount: float | None) -> str:
 
 def render_turn(result: TurnResult, usage: UsageLog) -> RenderableType:
     """Met en forme un tour : réponse, reçus (outil, statut), verdict, tokens et coût."""
-    parts: list[RenderableType] = [Text(result.reply)]
+    # Ligne vide systématique entre la réponse et le bloc reçus/verdict.
+    parts: list[RenderableType] = [Markdown(result.reply), Text()]
     if result.receipts:
         table = Table(show_header=True, header_style="dim", box=None, padding=(0, 2))
         for column in ("Reçu", "Outil", "Statut"):
@@ -126,6 +128,7 @@ def chat() -> None:
         usage,
         max_tool_rounds=settings.max_tool_rounds,
         history_messages=settings.history_messages,
+        address_form=settings.address_form,
     )
     console.print("ATLAS est prêt. Tape « exit » pour quitter.", style="dim")
     while True:
