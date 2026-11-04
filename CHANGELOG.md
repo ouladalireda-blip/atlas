@@ -7,6 +7,8 @@ et ce projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [0.1.0] - 2026-11-04
+
 ### Ajouté
 
 - Squelette du paquet `atlas` en layout `src/`, géré avec uv.
@@ -51,6 +53,9 @@ et ce projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- Vocabulaire `tasks.delete` : `retiré`, `retirée`, `retirés`, `retirées` (`removed` y figurait déjà).
+- `README.md` de présentation : résultats mesurés sur les deux jeux d'évaluation, architecture,
+  démarrage, limites et feuille de route.
 - Le vérificateur traite un verbe qui figure dans le vocabulaire d'un effet comme désignant cet
   effet seul (l'éval est inchangée).
 - `atlas chat` affiche les réponses en Markdown, avec une ligne vide avant les reçus et le verdict.
