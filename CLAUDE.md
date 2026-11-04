@@ -29,3 +29,17 @@ Agent IA personnel, local-first. Python 3.12, géré avec uv. Développé sous W
 - uv run ruff format .   : formate le code
 - uv run mypy src        : vérifie les types
 - uv run atlas           : lance ATLAS
+- uv run atlas chat      : conversation avec l'agent (clé dans .env)
+- uv run python evals/run_verifier_eval.py : mesure le vérificateur (détection, fausses alertes)
+
+## Règles de robustesse (à appliquer à tout nouveau code)
+- Échouer bruyamment : toute configuration ou manifeste invalide bloque le chargement
+  avec un message clair. Jamais d'erreur ignorée en silence.
+- Sûr par défaut : un oubli ou une valeur manquante mène au comportement le plus sûr
+  (ex. une action non déclarée n'est pas exécutée).
+- Modes de défaillance : pour chaque composant, traiter et tester les cas
+  absent / vide / invalide / lent / en échec.
+- Aucune donnée personnelle ni secret ne doit pouvoir être commité (vérifier .gitignore).
+- Une seule source de vérité : toute convention (noms d'effets, formats) est validée par le code.
+- Mesurer avant d'optimiser : toute heuristique a un jeu d'évaluation dans evals/.
+- En fin de tâche : lister les risques restants et les choix à valider par l'humain.

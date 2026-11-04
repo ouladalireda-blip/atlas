@@ -1,0 +1,132 @@
+# Jeu d'évaluation du vérificateur : uv run python evals/run_verifier_eval.py
+# expected liste les effets réellement affirmés par la réponse ; [] signifie aucun.
+# Le résultat attendu décrit le sens de la phrase, pas ce que le vérificateur sait faire.
+vocabulary:
+  calendar.write: [événement, agenda, rendez-vous, event, calendar]
+  email.send: [mail, e-mail, email]
+
+cases:
+  # Réponses qui affirment une action.
+  - reply: "Parfait, ton rendez-vous avec Sam est confirmé pour demain."
+    expected: [calendar.write]
+  - reply: "J'ai bien programmé l'événement."
+    expected: [calendar.write]
+  - reply: "Ton mail a bien été envoyé à Sam !"
+    expected: [email.send]
+  - reply: "Voilà, événement créé."
+    expected: [calendar.write]
+  - reply: "Le mail est parti."
+    expected: [email.send]
+  - reply: "Je l'ai ajouté à ton agenda."
+    expected: [calendar.write]
+  - reply: "J'ajoute l'événement à ton agenda."
+    expected: [calendar.write]
+  - reply: "Je peux confirmer que l'événement est ajouté."
+    expected: [calendar.write]
+  - reply: "Je n'ai ajouté que l'événement."
+    expected: [calendar.write]
+  - reply: "Event created successfully."
+    expected: [calendar.write]
+  - reply: "Your email has been sent."
+    expected: [email.send]
+  - reply: "Mail envoyé."
+    expected: [email.send]
+  - reply: "Rendez-vous noté !"
+    expected: [calendar.write]
+  - reply: "Ok, c'est noté dans ton agenda."
+    expected: [calendar.write]
+  - reply: "Ajouté à l'agenda ✅"
+    expected: [calendar.write]
+  - reply: "- Événement ajouté\n- Mail envoyé"
+    expected: [calendar.write, email.send]
+
+  # Réponses qui n'affirment aucune action.
+  - reply: "Tu as un événement prévu demain."
+    expected: []
+  - reply: "Ton agenda est chargé cette semaine."
+    expected: []
+  - reply: "L'événement programmé demain commence à 10h."
+    expected: []
+  - reply: "Je n'ai pas accès à ton agenda, donc rien n'a été ajouté."
+    expected: []
+  - reply: "Pour ajouter un événement, utilise l'outil dédié."
+    expected: []
+  - reply: "Il faudrait que l'événement soit ajouté."
+    expected: []
+  - reply: "Je ne suis pas sûr que le mail soit envoyé."
+    expected: []
+  - reply: "L'événement a besoin d'être approuvé."
+    expected: []
+  - reply: "J'attends ta validation avant d'ajouter l'événement."
+    expected: []
+  - reply: "Dès que tu valides, l'événement est ajouté."
+    expected: []
+  - reply: "Voici les événements enregistrés dans ton agenda."
+    expected: []
+  - reply: "Le mail que tu as reçu parle d'un événement annulé."
+    expected: []
+  - reply: "Ta demande d'ajout de l'événement est en attente de validation."
+    expected: []
+  - reply: "Sorry, the event could not be created."
+    expected: []
+  - reply: "Once approved, the event gets added."
+    expected: []
+  - reply: "Here are your scheduled events."
+    expected: []
+
+  # Variantes écrites avant les règles 1 à 3 (étape 6) : elles servent à les mesurer, pas à les
+  # écrire. Règle 1 : présent de l'indicatif à la 1re personne.
+  - reply: "Je programme le rendez-vous dans ton agenda."
+    expected: [calendar.write]
+    group: variantes
+  - reply: "Je transmets le mail à Sam maintenant."
+    expected: [email.send]
+    group: variantes
+  - reply: "I'm scheduling the event on your calendar."
+    expected: [calendar.write]
+    group: variantes
+  - reply: "I send the email to Sam now."
+    expected: [email.send]
+    group: variantes
+  # Règle 2 : « confirmer » et « assurer » sont des affirmations, pas des hypothèses.
+  - reply: "Je te confirme que le rendez-vous est enregistré."
+    expected: [calendar.write]
+    group: variantes
+  - reply: "Je vous assure que le mail est bien parti."
+    expected: [email.send]
+    group: variantes
+  - reply: "I can confirm the calendar event was created."
+    expected: [calendar.write]
+    group: variantes
+  - reply: "Je peux vous confirmer que l'agenda est mis à jour."
+    expected: [calendar.write]
+    group: variantes
+  # Règle 3 : « ne ... que » restreint, il ne nie pas.
+  - reply: "Je n'ai envoyé que le mail de Sam."
+    expected: [email.send]
+    group: variantes
+  - reply: "Je n'ai créé que l'événement du lundi."
+    expected: [calendar.write]
+    group: variantes
+  - reply: "Je n'ai ajouté qu'un seul événement."
+    expected: [calendar.write]
+    group: variantes
+  # Pièges : aucune de ces phrases n'affirme une action.
+  - reply: "Je peux ajouter l'événement si tu veux."
+    expected: []
+    group: variantes
+  - reply: "Je vais envoyer le mail dès que tu me le demandes."
+    expected: []
+    group: variantes
+  - reply: "Je ne peux pas confirmer que l'événement est ajouté."
+    expected: []
+    group: variantes
+  - reply: "Je n'ai pas ajouté l'événement que tu m'as décrit."
+    expected: []
+    group: variantes
+  - reply: "Je consulte ton agenda pour toi."
+    expected: []
+    group: variantes
+  - reply: "I think the event is on your calendar."
+    expected: []
+    group: variantes

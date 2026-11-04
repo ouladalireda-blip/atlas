@@ -16,7 +16,7 @@ class Place(BaseModel):
 class AgendaSkill(Skill):
     name = "agenda"
 
-    @tool(effect="calendar_write")
+    @tool(effect="calendar.write")
     def add(self, title: str, day: date, reminders: int = 0) -> dict[str, Any]:
         """Ajoute un événement à l'agenda."""
         return {"title": title, "day": day, "reminders": reminders}
@@ -50,7 +50,7 @@ def test_tools_returns_only_marked_methods() -> None:
 
 
 def test_tool_keeps_effect_and_does_not_run_the_method() -> None:
-    assert agenda_tool("agenda_add").effect == "calendar_write"
+    assert agenda_tool("agenda_add").effect == "calendar.write"
     assert agenda_tool("agenda_fail").effect is None
 
 

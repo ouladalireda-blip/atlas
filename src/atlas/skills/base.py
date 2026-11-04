@@ -1,11 +1,15 @@
 """Contrat des compétences : déclaration des outils, schéma JSON et appel validé."""
 
 import inspect
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, ClassVar, get_type_hints
 
 from pydantic import BaseModel, ConfigDict, ValidationError, create_model
+
+# Seule définition du format d'un effet, « domaine.action » : calendar.write par exemple.
+EFFECT_PATTERN = r"^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$"
 
 _EFFECT_ATTRIBUTE = "__atlas_tool_effect__"
 _UNSUPPORTED_PARAMETER_KINDS = (
@@ -35,6 +39,10 @@ def tool[F: Callable[..., Any]](effect: str | None = None) -> Callable[[F], F]:
     """Marque une méthode comme outil et stocke son effet, sans rien exécuter."""
     if callable(effect):
         raise ToolDefinitionError("Le décorateur s'écrit avec des parenthèses : @tool().")
+    if effect is not None and not re.fullmatch(EFFECT_PATTERN, effect):
+        raise ToolDefinitionError(
+            f"Effet invalide : {effect!r}. Format attendu : domaine.action (calendar.write)."
+        )
 
     def mark(method: F) -> F:
         setattr(method, _EFFECT_ATTRIBUTE, effect)

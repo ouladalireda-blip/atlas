@@ -46,6 +46,20 @@ class SkillRegistry:
     tools: list[ToolSpec]
     errors: list[SkillError]
 
+    def claim_vocabulary(self) -> dict[str, list[str]]:
+        """Fusionne les vocabulaires d'affirmation de toutes les compétences, sans doublon."""
+        vocabulary: dict[str, list[str]] = {}
+        for loaded in self.skills:
+            for effect, words in loaded.manifest.claims.items():
+                vocabulary[effect] = list(dict.fromkeys([*vocabulary.get(effect, []), *words]))
+        return vocabulary
+
+    def requires_approval(self) -> frozenset[str]:
+        """Fusionne les effets soumis à validation humaine de toutes les compétences."""
+        return frozenset(
+            effect for loaded in self.skills for effect in loaded.manifest.requires_approval
+        )
+
 
 def _import_module(folder: Path) -> ModuleType:
     """Importe skill.py depuis son chemin, quel que soit l'emplacement du dossier."""
@@ -89,7 +103,23 @@ def _load_skill(folder: Path) -> LoadedSkill:
             f"Le manifeste indique {manifest.name!r}, mais la classe indique {class_name!r}."
         )
     skill = skill_class()
-    return LoadedSkill(manifest=manifest, skill=skill, tools=skill.tools())
+    tools = skill.tools()
+    _check_declared_effects(manifest, tools)
+    return LoadedSkill(manifest=manifest, skill=skill, tools=tools)
+
+
+def _check_declared_effects(manifest: SkillManifest, tools: list[ToolSpec]) -> None:
+    """Refuse un effet sans outil : une faute de frappe contournerait la validation humaine."""
+    declared = {spec.effect for spec in tools}
+    for field, effects in (
+        ("requires_approval", manifest.requires_approval),
+        ("claims", manifest.claims),
+    ):
+        unknown = sorted(set(effects) - declared)
+        if unknown:
+            raise SkillLoadError(
+                f"{field} cite des effets qu'aucun outil ne déclare : {', '.join(unknown)}."
+            )
 
 
 def _check_unique_names(candidate: LoadedSkill, loaded: list[LoadedSkill]) -> None:

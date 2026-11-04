@@ -12,18 +12,19 @@ from atlas.skills.loader import load_skills
 FIXTURES = Path(__file__).parent / "fixtures" / "skills"
 
 
-def manifest_text(name: str) -> str:
+def manifest_text(name: str, approval: str = "[]") -> str:
     return (
-        f'name: {name}\nversion: "1.0.0"\ndescription: Test.\nexamples: []\nrequires_approval: []\n'
+        f'name: {name}\nversion: "1.0.0"\ndescription: Test.\nexamples: []\n'
+        f"requires_approval: {approval}\n"
     )
 
 
-def skill_code(name: str, method: str = "run") -> str:
+def skill_code(name: str, method: str = "run", effect: str | None = None) -> str:
     return (
         "from atlas.skills.base import Skill, tool\n"
         "class TestedSkill(Skill):\n"
         f"    name = {name!r}\n"
-        "    @tool()\n"
+        f"    @tool({effect!r})\n"
         f"    def {method}(self) -> str:\n"
         '        """Outil de test."""\n'
         '        return "ok"\n'
@@ -115,6 +116,86 @@ def test_duplicate_skill_name_is_refused(tmp_path: Path) -> None:
 
     assert [spec.name for spec in registry.tools] == ["same_one"]
     assert [error.folder for error in registry.errors] == ["second"]
+
+
+def test_claim_vocabulary_merges_skills_without_duplicates(tmp_path: Path) -> None:
+    claims_a = "claims:\n  shared.write: [agenda, event]\n"
+    claims_b = "claims:\n  shared.write: [event, meeting]\n"
+    claims_c = "claims:\n  other.send: [mail]\n"
+    write_skill(
+        tmp_path, "a", manifest_text("a") + claims_a, skill_code("a", effect="shared.write")
+    )
+    write_skill(
+        tmp_path, "b", manifest_text("b") + claims_b, skill_code("b", effect="shared.write")
+    )
+    write_skill(tmp_path, "c", manifest_text("c") + claims_c, skill_code("c", effect="other.send"))
+    write_skill(tmp_path, "d", manifest_text("d"), skill_code("d"))
+
+    registry = load_skills(tmp_path)
+
+    assert registry.errors == []
+    assert registry.claim_vocabulary() == {
+        "shared.write": ["agenda", "event", "meeting"],
+        "other.send": ["mail"],
+    }
+
+
+def test_requires_approval_merges_manifests(tmp_path: Path) -> None:
+    write_skill(tmp_path, "a", manifest_text("a", "[x.write]"), skill_code("a", effect="x.write"))
+    write_skill(tmp_path, "b", manifest_text("b", "[y.write]"), skill_code("b", effect="y.write"))
+    write_skill(tmp_path, "c", manifest_text("c"), skill_code("c", effect="z.write"))
+
+    registry = load_skills(tmp_path)
+
+    assert registry.errors == []
+    assert registry.requires_approval() == {"x.write", "y.write"}
+
+
+def test_requires_approval_is_empty_without_skills(tmp_path: Path) -> None:
+    assert load_skills(tmp_path).requires_approval() == frozenset()
+
+
+def test_declared_effects_are_accepted(tmp_path: Path) -> None:
+    manifest = manifest_text("a", "[calendar.write]") + "claims:\n  calendar.write: [agenda]\n"
+    write_skill(tmp_path, "a", manifest, skill_code("a", effect="calendar.write"))
+
+    assert load_skills(tmp_path).errors == []
+
+
+@pytest.mark.parametrize(
+    ("manifest", "field"),
+    [
+        (manifest_text("bad", "[calendar.wirte]"), "requires_approval"),
+        (manifest_text("bad") + "claims:\n  calendar.wirte: [agenda]\n", "claims"),
+    ],
+    ids=["requires_approval", "claims"],
+)
+def test_undeclared_effect_is_refused(tmp_path: Path, manifest: str, field: str) -> None:
+    write_skill(tmp_path, "bad", manifest, skill_code("bad", effect="calendar.write"))
+    write_skill(tmp_path, "good", manifest_text("good"), skill_code("good"))
+
+    registry = load_skills(tmp_path)
+
+    assert [loaded.manifest.name for loaded in registry.skills] == ["good"]
+    assert [spec.name for spec in registry.tools] == ["good_run"]
+    assert [error.folder for error in registry.errors] == ["bad"]
+    assert field in registry.errors[0].message
+    assert "calendar.wirte" in registry.errors[0].message
+
+
+def test_effect_without_any_tool_is_refused(tmp_path: Path) -> None:
+    write_skill(tmp_path, "bad", manifest_text("bad", "[calendar.write]"), skill_code("bad"))
+
+    assert "calendar.write" in load_skills(tmp_path).errors[0].message
+
+
+def test_tool_with_badly_formed_effect_is_reported(tmp_path: Path) -> None:
+    write_skill(tmp_path, "bad", manifest_text("bad"), skill_code("bad", effect="calendar_write"))
+
+    registry = load_skills(tmp_path)
+
+    assert registry.tools == []
+    assert "domaine.action" in registry.errors[0].message
 
 
 def test_cli_lists_skills() -> None:

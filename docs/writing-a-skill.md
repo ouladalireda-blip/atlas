@@ -15,13 +15,24 @@ description: Enregistre des notes personnelles.
 examples:
   - Note que je dois rappeler Sam demain.
 requires_approval:
-  - notes_write
+  - notes.write
+claims:
+  notes.write:
+    - note
+    - mémo
 ```
 
-- Les cinq clés sont obligatoires, et toute autre clé est refusée.
+- Toutes les clés sont obligatoires sauf `claims`, et toute autre clé est refusée.
 - `name` contient uniquement des minuscules, des chiffres et des `_`, et commence par une lettre.
+- Un effet s'écrit `domaine.action`, en minuscules : `calendar.write`, `email.send`.
 - `requires_approval` liste les effets soumis à validation humaine. Laissez `[]` pour une
   compétence en lecture seule.
+- `requires_approval` et `claims` ne citent que des effets déclarés par un outil de la compétence.
+  Sinon la compétence est refusée au chargement, pour qu'une faute de frappe ne supprime pas une
+  validation.
+- `claims` donne, pour chaque effet, les mots qui signalent qu'une réponse affirme cette action.
+  Déclarez-le pour tout effet : sans lui, le vérificateur ne contrôle pas ces affirmations. Donnez
+  à chaque effet ses propres mots, car un mot partagé exige un reçu de chacun des effets.
 
 ## 2. Écrire la classe dans `skill.py`
 
@@ -38,7 +49,7 @@ class NotesSkill(Skill):
 
     name = "notes"
 
-    @tool(effect="notes_write")
+    @tool(effect="notes.write")
     def add(self, text: str, due: date | None = None) -> str:
         """Enregistre une note, avec une échéance facultative."""
         return f"Note enregistrée : {text}"
