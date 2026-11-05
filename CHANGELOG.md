@@ -9,6 +9,8 @@ et ce projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- `docs/design/0001-comparatif-detecteurs.md` : conception du comparatif des détecteurs
+  d'affirmations (règles, spaCy, embeddings, NLI, cascade), protocole, critère de décision et plan c2 à c7.
 - `core/lexicon.py` : classes de verbes write, delete et send, en français et en anglais, source
   unique des verbes du vérificateur.
 - `docs/eval-format.md` : format des fichiers d'éval, avec un en-tête modèle pour un jeu externe.
