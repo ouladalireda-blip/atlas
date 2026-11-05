@@ -71,6 +71,14 @@ et ce projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- **Repli du vérificateur** : un verbe d'action sans nom de domaine à portée vaut l'effet du seul
+  domaine qui déclare sa classe, ou une affirmation générique `*.<classe>` prouvée par un reçu `ok` de
+  n'importe lequel des effets de cette classe ; aucun domaine, aucune affirmation. Les marqueurs
+  bloquants s'appliquent toujours. « Rayer » passe de `delete` à `write`.
+- Le runner d'éval compte une affirmation générique comme détectée quand l'annotation attend un effet
+  qu'elle peut prouver.
+- Planchers du développement recalés après le repli (détection 71,1 % → 86,8 %, fausses alertes
+  8,0 % → 10,7 %).
 - **Format de `claims` dans les manifestes** : `nouns` (objets) + `actions` (classe de verbe → effet)
   remplacent « effet → mots ». Chaque effet cité doit être déclaré par un outil, chaque classe doit
   être connue du cœur. Le manifeste de `tasks` est mis à jour. `SkillRegistry.claim_vocabulary()`

@@ -96,11 +96,16 @@ class Claim:
 
     declared vaut False quand le domaine du nom ne déclare pas la classe du verbe : l'effet est
     alors « <domaine>.<classe> » et aucun reçu ne peut le prouver.
+
+    any_of est rempli pour une affirmation générique de classe, sans objet nommé et plusieurs
+    domaines possibles (« c'est ajouté ») : elle est prouvée par un reçu réussi de n'importe lequel
+    de ces effets. Son effect vaut alors « *.<classe> ».
     """
 
     effect: str | None
     text: str
     declared: bool = True
+    any_of: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -298,32 +303,55 @@ def _nearest_domain(tokens: Sequence[str], index: int, domains: Domains) -> str 
     return None if best is None else best[3]
 
 
-def _claimed(tokens: Sequence[str], domains: Domains) -> list[tuple[str | None, bool]]:
-    """Retourne les (effet, déclaré) affirmés par une proposition ; None est la règle générique."""
+def _fallback_claim(verb_class: str, domains: Domains, text: str) -> Claim | None:
+    """Affirmation d'un verbe d'action sans nom de domaine à portée.
+
+    Une classe déclarée par un seul domaine vaut l'effet de ce domaine ; par plusieurs, elle
+    est générique et un reçu réussi de n'importe lequel de ces effets la prouve ; déclarée par
+    aucun, il n'y a rien à affirmer ni à prouver.
+    """
+    declaring = [domain for domain in domains.values() if verb_class in domain.actions]
+    if not declaring:
+        return None
+    if len(declaring) == 1:
+        return Claim(declaring[0].actions[verb_class], text)
+    effects = tuple(dict.fromkeys(domain.actions[verb_class] for domain in declaring))
+    return Claim(f"*.{verb_class}", text, any_of=effects)
+
+
+def _claims_of(proposition: str, domains: Domains) -> list[Claim]:
+    """Retourne les affirmations d'une proposition ; effect None est la règle générique."""
+    tokens = _tokens(proposition)
     limit = _claim_limit(tokens)
     present = _present_actions(tokens)
     _, formula_verbs = _assertion_formulas(tokens)
-    claimed: list[tuple[str | None, bool]] = []
+    claims: list[Claim] = []
     if _GENERIC_DONE.search(" ".join(tokens[:limit])):
-        claimed.append((None, True))
+        claims.append(Claim(None, proposition))
     for index in range(limit):
         verb_class = present.get(index) or _participle_class(tokens, index)
         if verb_class is None or index in formula_verbs:
             continue
         name = _nearest_domain(tokens, index, domains)
         if name is None:
+            fallback = _fallback_claim(verb_class, domains, proposition)
+            if fallback is not None:
+                claims.append(fallback)
             continue
         effect = domains[name].actions.get(verb_class)
-        claimed.append((effect, True) if effect else (f"{name}.{verb_class}", False))
-    return claimed
+        if effect:
+            claims.append(Claim(effect, proposition))
+        else:
+            claims.append(Claim(f"{name}.{verb_class}", proposition, declared=False))
+    return claims
 
 
 def detect_claims(reply: str, domains: Domains) -> list[Claim]:
     """Retourne les affirmations d'action de la réponse, sans doublon."""
     claims: dict[Claim, None] = {}
     for proposition in _affirmative_propositions(reply):
-        for effect, declared in _claimed(_tokens(proposition), domains):
-            claims[Claim(effect, proposition, declared)] = None
+        for claim in _claims_of(proposition, domains):
+            claims[claim] = None
     return list(claims)
 
 
@@ -331,6 +359,8 @@ def _proves(receipt: Receipt, claim: Claim) -> bool:
     """Indique si un reçu réussi prouve l'affirmation ; une lecture ne prouve aucune écriture."""
     if claim.effect is None:
         return receipt.effect is not None
+    if claim.any_of:
+        return receipt.effect in claim.any_of
     return receipt.effect == claim.effect
 
 
@@ -359,6 +389,11 @@ def _describe(claim: Claim) -> str:
         return (
             f"- « {claim.text} » (action « {claim.effect} » : aucun outil ne la déclare, "
             "donc rien ne peut la prouver)"
+        )
+    if claim.any_of:
+        return (
+            f"- « {claim.text} » (action sans objet précisé : il faut un reçu réussi de "
+            f"l'un de ces effets : {', '.join(claim.any_of)})"
         )
     return f"- « {claim.text} » (effet attendu : {claim.effect or 'une action d’écriture'})"
 

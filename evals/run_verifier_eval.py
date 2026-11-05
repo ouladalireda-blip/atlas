@@ -28,7 +28,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from atlas.core.lexicon import VERB_CLASSES, Domain
-from atlas.core.verifier import detect_claims
+from atlas.core.verifier import Claim, detect_claims
 
 EVALS = Path(__file__).parent
 DEFAULT_CASES = EVALS / "verifier_cases.yaml"
@@ -201,6 +201,23 @@ def _sorted_effects(effects: set[str | None]) -> list[str | None]:
     return sorted(effects, key=str)
 
 
+def _found_effects(claims: list[Claim], expected: set[str | None]) -> set[str | None]:
+    """Effets trouvés dans une phrase, tels que l'annotation peut les comparer.
+
+    Une affirmation générique de classe (« c'est ajouté », sans objet) est prouvée par un reçu de
+    n'importe lequel de ses effets : elle est donc comptée pour les effets attendus qu'elle couvre,
+    et comme effet « *.classe » (fausse alerte) quand l'annotation n'en attend aucun.
+    """
+    found: set[str | None] = set()
+    for claim in claims:
+        covered = expected & set(claim.any_of)
+        if claim.any_of and covered:
+            found |= covered
+        else:
+            found.add(claim.effect)
+    return found
+
+
 def evaluate(data: EvalFile, group: str | None = None) -> EvalReport:
     """Passe chaque phrase au vérificateur et compare les effets détectés aux effets attendus.
 
@@ -214,7 +231,7 @@ def evaluate(data: EvalFile, group: str | None = None) -> EvalReport:
         if group is not None and case.group != group:
             continue
         expected = set(case.expected)
-        found = {claim.effect for claim in detect_claims(case.reply, domains)}
+        found = _found_effects(detect_claims(case.reply, domains), expected)
         if expected:
             positives += 1
             detected += found == expected

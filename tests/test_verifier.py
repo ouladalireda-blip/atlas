@@ -27,7 +27,11 @@ def effects(reply: str) -> list[str | None]:
 def test_original_bug_without_receipt_is_unsupported() -> None:
     result = verify(ORIGINAL_BUG, [], DOMAINS)
 
-    assert result.unsupported == [Claim("calendar.write", "l'événement est ajouté à ton agenda.")]
+    # « Confirmé » seul est une affirmation sans objet (repli), puis la proposition complète.
+    assert result.unsupported == [
+        Claim("calendar.write", "Confirmé"),
+        Claim("calendar.write", "l'événement est ajouté à ton agenda."),
+    ]
     assert result.supported_by == {}
 
 
@@ -37,20 +41,21 @@ def test_same_sentence_with_ok_receipt_is_supported() -> None:
     result = verify(ORIGINAL_BUG, [proof], DOMAINS)
 
     assert result.unsupported == []
-    assert result.supported_by == {result.claims[0]: [proof]}
+    assert result.supported_by == {claim: [proof] for claim in result.claims}
+    assert len(result.claims) == 2
 
 
 @pytest.mark.parametrize("status", [ReceiptStatus.ERROR, ReceiptStatus.PENDING_APPROVAL])
 def test_receipt_without_ok_status_proves_nothing(status: ReceiptStatus) -> None:
     result = verify(ORIGINAL_BUG, [receipt("calendar.write", status)], DOMAINS)
 
-    assert len(result.unsupported) == 1
+    assert len(result.unsupported) == len(result.claims) == 2
 
 
 def test_receipt_of_another_effect_proves_nothing() -> None:
     result = verify(ORIGINAL_BUG, [receipt("email.send")], DOMAINS)
 
-    assert len(result.unsupported) == 1
+    assert len(result.unsupported) == len(result.claims) == 2
 
 
 def test_each_claim_needs_its_own_receipt() -> None:
@@ -133,7 +138,6 @@ def test_code_is_ignored(reply: str) -> None:
         "The event failed.",
         "I checked your calendar.",
         "Désolé pour cet événement.",
-        "Confirmé, à bientôt.",
     ],
 )
 def test_reading_failure_and_lookalike_words_are_not_claims(reply: str) -> None:
@@ -198,20 +202,25 @@ def test_condition_does_not_block_what_comes_before_or_another_sentence(
     assert effects(reply) == expected
 
 
-def test_distant_word_is_not_a_claim() -> None:
+def test_a_distant_noun_does_not_count_so_the_class_fallback_applies() -> None:
     reply = "Tout est validé pour ce projet long et complexe que nous suivons dans ton agenda."
 
-    assert detect_claims(reply, DOMAINS) == []
+    # L'agenda est à plus de 6 mots : le verbe n'a pas d'objet à portée. Seul calendar déclare la
+    # classe write, donc l'affirmation vaut calendar.write (repli, ADR 0005).
+    assert effects(reply) == ["calendar.write"]
 
 
 def test_same_claim_is_reported_once() -> None:
     assert effects("L'événement est ajouté et enregistré.") == ["calendar.write"]
 
 
-def test_empty_noun_matches_nothing() -> None:
+def test_empty_noun_matches_nothing_so_only_the_fallback_remains() -> None:
     domain = Domain(nouns=("", "   "), actions={"write": "any.write"})
 
-    assert detect_claims("Tout est validé.", {"any": domain}) == []
+    claims = detect_claims("Tout est validé.", {"any": domain})
+
+    assert [claim.effect for claim in claims] == ["any.write"]
+    assert detect_claims("Tout est bien rangé.", {"any": domain}) == []
 
 
 @pytest.mark.parametrize("reply", ["C'est fait !", "C'est bien fait.", "Done.", "All done!"])

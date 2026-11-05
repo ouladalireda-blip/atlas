@@ -43,6 +43,7 @@ def test_the_core_knows_exactly_three_classes() -> None:
             ["programmé", "planifiée", "réservés", "bloquées", "calé", "noté", "enregistrées"],
         ),
         ("write", ["écrit", "écrite", "complété", "complétée", "marquée", "cochée", "confirmé"]),
+        ("write", ["rayé", "rayée", "rayés", "rayées"]),  # rayer = marquer comme fait
         ("delete", ["supprimé", "supprimée", "supprimés", "supprimées", "effacé", "annulée"]),
         ("delete", ["retiré", "retirée", "retirés", "retirées", "enlevé", "détruit", "détruites"]),
         ("send", ["envoyé", "envoyée", "envoyés", "envoyées", "expédié", "relancée"]),
@@ -69,6 +70,7 @@ def test_participles_in_all_genders_numbers_and_irregular_forms(
     [
         ("write", ["ajoute", "crée", "programme", "planifie", "mets", "inscris", "écris", "note"]),
         ("delete", ["supprime", "efface", "annule", "retire", "détruis", "enlève"]),
+        ("write", ["raye"]),
         ("send", ["envoie", "transmets", "réponds", "expédie", "relance", "transfère"]),
     ],
 )
@@ -155,3 +157,8 @@ def test_domain_is_a_plain_value() -> None:
     domain = Domain(nouns=("a",), actions={"write": "x.write"})
 
     assert domain == Domain(nouns=("a",), actions={"write": "x.write"})
+
+
+def test_raying_is_writing_not_deleting() -> None:
+    assert not any(form.startswith("ray") for form in LEXICON["delete"].participles)
+    assert "raye" not in LEXICON["delete"].present_fr
