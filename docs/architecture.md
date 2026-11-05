@@ -48,7 +48,7 @@ résultat comme celui de n'importe quel outil.
 | --- | --- |
 | `tests/` | Tests du projet ; aucun ne fait d'appel réseau (LLM simulé). |
 | `docs/` | Documentation et décisions d'architecture (`adr/`). |
-| `evals/` | Scénarios d'évaluation, au moins 3 par compétence, et mesure du vérificateur (`run_verifier_eval.py`). |
+| `evals/` | Scénarios d'évaluation, au moins 3 par compétence, et mesure du vérificateur : jeu de développement et jeu de test séparés, planchers dans `thresholds.yaml` (voir [l'ADR 0004](adr/0004-jeu-de-test-cache.md)). |
 | `legacy/` | Ancienne version, conservée comme référence. Ne jamais la modifier ni l'importer. |
 
 ## Règles de sécurité
@@ -57,7 +57,10 @@ résultat comme celui de n'importe quel outil.
 - Les effets listés dans `requires_approval` ne s'exécutent qu'après validation humaine (voir ci-dessus). La liste
   fusionne tous les manifestes et s'applique à tous les outils portant cet effet.
 - Le vérificateur refuse toute affirmation d'action sans reçu d'outil réussi
-  (voir [l'ADR 0002](adr/0002-verification-par-recus.md)).
+  (voir [l'ADR 0002](adr/0002-verification-par-recus.md)). Le cœur connaît les verbes
+  (`core/lexicon.py`), les compétences leurs objets (`claims.nouns` et `claims.actions`) : l'effet
+  d'une affirmation est la classe du verbe appliquée au domaine du nom le plus proche
+  (voir [l'ADR 0005](adr/0005-verbes-et-objets.md) et le [format d'éval](eval-format.md)).
 - La boucle agent ne relance jamais un outil et ne laisse remonter aucune exception
   (voir [l'ADR 0003](adr/0003-boucle-agent.md)).
 - Pas de donnée sensible via OpenRouter : utiliser Ollama pour ces cas.

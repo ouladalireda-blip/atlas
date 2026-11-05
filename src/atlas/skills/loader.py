@@ -9,6 +9,7 @@ from types import ModuleType
 
 import yaml
 
+from atlas.core.lexicon import Domain
 from atlas.skills.base import Skill, SkillContext, ToolSpec
 from atlas.skills.manifest import SkillManifest
 from atlas.storage.migrator import MigrationSource
@@ -50,13 +51,16 @@ class SkillRegistry:
     tools: list[ToolSpec]
     errors: list[SkillError]
 
-    def claim_vocabulary(self) -> dict[str, list[str]]:
-        """Fusionne les vocabulaires d'affirmation de toutes les compétences, sans doublon."""
-        vocabulary: dict[str, list[str]] = {}
-        for loaded in self.skills:
-            for effect, words in loaded.manifest.claims.items():
-                vocabulary[effect] = list(dict.fromkeys([*vocabulary.get(effect, []), *words]))
-        return vocabulary
+    def claim_domains(self) -> dict[str, Domain]:
+        """Rassemble les domaines déclarés par les compétences, sous le nom de la compétence."""
+        return {
+            loaded.manifest.name: Domain(
+                nouns=tuple(loaded.manifest.claims.nouns),
+                actions=dict(loaded.manifest.claims.actions),
+            )
+            for loaded in self.skills
+            if loaded.manifest.claims is not None
+        }
 
     def migration_sources(self) -> list[MigrationSource]:
         """Retourne les migrations des compétences chargées, sans que le cœur les connaisse."""
@@ -131,7 +135,7 @@ def _check_declared_effects(manifest: SkillManifest, tools: list[ToolSpec]) -> N
     declared = {spec.effect for spec in tools}
     for field, effects in (
         ("requires_approval", manifest.requires_approval),
-        ("claims", manifest.claims),
+        ("claims", manifest.claims.actions.values() if manifest.claims else []),
     ):
         unknown = sorted(set(effects) - declared)
         if unknown:

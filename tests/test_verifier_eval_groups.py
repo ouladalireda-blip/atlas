@@ -9,8 +9,10 @@ import pytest
 
 EVALS = Path(__file__).parent.parent / "evals"
 YAML = """
-vocabulary:
-  calendar.write: [événement]
+domains:
+  calendar:
+    nouns: [événement]
+    actions: {write: calendar.write}
 cases:
   - reply: "L'événement est ajouté."
     expected: [calendar.write]

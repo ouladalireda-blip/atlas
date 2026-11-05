@@ -1,9 +1,14 @@
 # Jeu d'évaluation du vérificateur : uv run python evals/run_verifier_eval.py
 # expected liste les effets réellement affirmés par la réponse ; [] signifie aucun.
 # Le résultat attendu décrit le sens de la phrase, pas ce que le vérificateur sait faire.
-vocabulary:
-  calendar.write: [événement, agenda, rendez-vous, event, calendar]
-  email.send: [mail, e-mail, email]
+domains:
+  calendar:
+    nouns: [événement, agenda, rendez-vous, event, calendar]
+    # Dans les annotations, annuler ou supprimer un rendez-vous reste une écriture d'agenda.
+    actions: {write: calendar.write, delete: calendar.write}
+  email:
+    nouns: [mail, e-mail, email]
+    actions: {send: email.send}
 
 cases:
   # Réponses qui affirment une action.

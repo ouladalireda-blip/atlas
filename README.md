@@ -43,22 +43,30 @@ Le vérificateur est une heuristique sans LLM, donc elle se mesure. Chiffres rel
 
 ```powershell
 uv run python evals/run_verifier_eval.py                              # jeu de développement
-uv run python evals/run_verifier_eval.py evals/independent_cases.yaml # jeu indépendant
+uv run python evals/run_verifier_eval.py evals/independent_cases.yaml # jeu indépendant analysé (v0.1)
 ```
 
 | Jeu | Phrases | Détection des affirmations | Fausses alertes |
 | --- | --- | --- | --- |
 | Développement (`evals/verifier_cases.yaml`) | 49 | **100 %** (27/27) | **18,2 %** (4/22) |
-| Indépendant (`evals/independent_cases.yaml`) | 204 | **47,5 %** (47/99) | **9,5 %** (10/105) |
+| Jeu indépendant analysé (v0.1) (`evals/independent_cases.yaml`) | 204 | **47,5 %** (47/99) | **9,5 %** (10/105) |
 
 Le jeu de développement a servi à écrire les règles : son 100 % est optimiste, il décrit ce que les
 règles savent déjà faire. Il se décompose en 32 phrases d'origine (détection 16/16, fausses alertes 4/16)
 et 17 variantes écrites avant les règles correspondantes (détection 11/11, fausses alertes 0/6). Le jeu
-indépendant a été rédigé sans connaître les règles ; **c'est lui qui donne la mesure réaliste**. Son
+indépendant analysé (v0.1) a été rédigé sans connaître les règles ; **il donne la mesure réaliste de
+la v0.1**, mais ses erreurs ont été lues et analysées : il ne peut plus servir de jeu aveugle. Son
 annotation reste à relire par un humain, et son vocabulaire est une copie figée de celui des
 manifestes (il ne contient pas « retiré », ajouté depuis).
 
-Analyse des erreurs du jeu indépendant (62 au total) :
+Depuis la v0.2, ce jeu est découpé en un jeu de développement et un jeu de test qu'on ne lit jamais
+([ADR 0004](docs/adr/0004-jeu-de-test-cache.md)) ; les chiffres ci-dessus portent sur le jeu complet,
+avant ce découpage. **À partir de la v0.2, la mesure de référence sera un jeu aveugle, gardé hors du
+dépôt**, écrit sans connaître les règles et jamais lu pour corriger le vérificateur ; il se mesure
+avec `run_verifier_eval.py --test <chemin>`, qui n'affiche que des chiffres agrégés. Toute catégorie
+de moins de 10 phrases est marquée « effectif insuffisant » dans les rapports.
+
+Analyse des erreurs du jeu indépendant analysé (v0.1) (62 au total) :
 
 1. **52 affirmations sur 99 ne sont pas correctement détectées.** 41 ne déclenchent rien : dans 19 cas la
    phrase n'emploie aucun mot du vocabulaire (« réunion », « rdv », « entretien », « courriel »), dans 22
@@ -69,7 +77,7 @@ Analyse des erreurs du jeu indépendant (62 au total) :
 2. **Les 10 fausses alertes sont presque toutes des participes qui décrivent un état ou l'acte de quelqu'un
    d'autre** (9 sur 10 : « le mail envoyé par la banque », « l'événement que l'école a annulé », « un agenda
    bien organisé ») ; la dixième est une intention (« dis-moi l'heure et je l'ajoute »).
-3. **Un verbe du vocabulaire vaut pour toutes les compétences** : « j'ai supprimé le rendez-vous » est lu
+3. **Un verbe du vocabulaire valait pour toutes les compétences** (corrigé en v0.2 par l'ADR 0005) : « j'ai supprimé le rendez-vous » est lu
    comme `tasks.delete`. C'est une limite connue (ADR 0002) qui apparaît ici avec un exemple réel.
 
 Les pistes de correction (vocabulaire plus large, analyse grammaticale avec spaCy, verbes liés à leur
@@ -125,7 +133,7 @@ Une compétence est un dossier `src/atlas/skills/<nom>/` :
 
 ```text
 skills/notes/
-├── manifest.yaml      # nom, exemples, effets à valider, vocabulaire des affirmations
+├── manifest.yaml      # nom, exemples, effets à valider, objets (nouns) et effets par classe de verbe
 ├── skill.py           # une classe Skill, outils déclarés avec @tool(effect="notes.write")
 ├── migrations/        # 0001_create_notes.sql, appliquées dans une transaction
 └── tests/
@@ -137,7 +145,7 @@ Toute compétence arrive avec ses tests et au moins 3 scénarios dans `evals/`. 
 
 ## Qualité
 
-- **512 tests, couverture de 99 %**, sans aucun appel réseau (modèle simulé, serveur HTTP simulé).
+- **558 tests, couverture de 99 %**, sans aucun appel réseau (modèle simulé, serveur HTTP simulé).
 - `ruff` (lint et format), **`mypy` en mode strict** sur `src/`, hooks `pre-commit`, intégration
   continue GitHub Actions qui rejoue le tout.
 - Typage complet, requêtes SQL toujours paramétrées, migrations vérifiées par empreinte.
@@ -153,14 +161,16 @@ uv run mypy src
 ## Limites connues
 
 - **Le vérificateur est une heuristique** : 47,5 % de détection et 9,5 % de fausses alertes sur le jeu
-  indépendant. Il réduit le risque de fausse promesse, il ne l'élimine pas.
+  indépendant analysé (v0.1). Il réduit le risque de fausse promesse, il ne l'élimine pas.
 - **Les participes adjectifs** (« agenda chargé », « mail envoyé par la banque ») déclenchent des fausses
   alertes ; seuls le français et l'anglais sont couverts.
 - **Un effet non listé dans `requires_approval` s'exécute sans validation** (c'est le cas de
   `tasks.write`). Les outils n'ont pas de délai maximal.
 - **L'approbation vaut pour la session en cours** : un reçu `pending_approval` laissé sans réponse n'est
   pas repris plus tard.
-- **Un verbe du vocabulaire vaut pour toutes les compétences** (voir l'analyse ci-dessus).
+- **Le lexique de verbes est une liste fermée** (classes write, delete, send ; ADR 0005) : un verbe
+  absent n'est pas détecté. Depuis la v0.2, un verbe ne se confond plus entre compétences : il est lu
+  avec le domaine du nom le plus proche.
 - **Le budget quotidien est approximatif** (contrôlé avant chaque appel) et suppose un seul processus à
   la fois sur la base.
 - Pas de flux continu des réponses, pas de sauvegarde automatique de la base, pas de retour en arrière sur
@@ -172,7 +182,7 @@ Indicative et révisable ; chaque version se mesure sur les jeux d'évaluation.
 
 | Version | Thème |
 | --- | --- |
-| v0.2 | Vérificateur : vocabulaire élargi, analyse grammaticale (spaCy), verbes liés à leur domaine ; objectif mesuré sur le jeu indépendant |
+| v0.2 | Vérificateur : vocabulaire élargi, analyse grammaticale (spaCy), verbes liés à leur domaine ; objectif mesuré sur le jeu aveugle hors dépôt |
 | v0.3 | Sûr par défaut : validation exigée pour tout effet non dispensé explicitement, délai maximal des outils |
 | v0.4 | Compétences agenda et e-mail |
 | v0.5 | Mémoire de l'agent (`memory/`) |

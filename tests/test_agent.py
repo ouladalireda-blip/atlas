@@ -72,7 +72,10 @@ def make_agent(
         description="Test.",
         examples=[],
         requires_approval=["calendar.delete"],
-        claims={"calendar.write": ["événement"], "calendar.delete": ["supprimé"]},
+        claims={
+            "nouns": ["événement"],
+            "actions": {"write": "calendar.write", "delete": "calendar.delete"},
+        },
     )
     tools = skill.tools()
     registry = SkillRegistry(skills=[LoadedSkill(manifest, skill, tools)], tools=tools, errors=[])

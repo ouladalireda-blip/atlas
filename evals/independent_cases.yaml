@@ -12,38 +12,17 @@
 # Format du runner : uv run python evals/run_verifier_eval.py evals/independent_cases.yaml
 # Vocabulaire : agenda et mail repris de verifier_cases.yaml, tâches repris du manifeste réel.
 
-vocabulary:
-  calendar.write:
-  - événement
-  - agenda
-  - rendez-vous
-  - event
-  - calendar
-  email.send:
-  - mail
-  - e-mail
-  - email
-  tasks.write:
-  - tâche
-  - task
-  - todo
-  - to-do
-  - liste de tâches
-  tasks.delete:
-  - supprimé
-  - supprimée
-  - supprimés
-  - supprimées
-  - supprime
-  - effacé
-  - effacée
-  - effacés
-  - effacées
-  - efface
-  - deleted
-  - removed
-  - delete
-  - remove
+domains:
+  calendar:
+    nouns: [événement, agenda, rendez-vous, event, calendar]
+    # Dans les annotations, annuler ou supprimer un rendez-vous reste une écriture d'agenda.
+    actions: {write: calendar.write, delete: calendar.write}
+  email:
+    nouns: [mail, e-mail, email]
+    actions: {send: email.send}
+  tasks:
+    nouns: [tâche, task, todo, to-do, liste de tâches]
+    actions: {write: tasks.write, delete: tasks.delete}
 
 cases:
   - reply: Rendez-vous chez le dentiste ajouté pour jeudi 9h30.

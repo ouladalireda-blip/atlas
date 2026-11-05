@@ -1,0 +1,396 @@
+# Jeu de TEST du vérificateur : autre moitié de evals/independent_cases.yaml.
+# Généré par evals/split_cases.py (seed 20261104) : ne pas modifier à la main.
+# NE JAMAIS LIRE NI UTILISER pour modifier le vérificateur : il ne sert qu'à mesurer.
+# Le runner (--test) n'affiche que des chiffres agrégés. Voir docs/adr/0004-jeu-de-test-cache.md.
+
+domains:
+  calendar:
+    nouns:
+    - événement
+    - agenda
+    - rendez-vous
+    - event
+    - calendar
+    actions:
+      write: calendar.write
+      delete: calendar.write
+  email:
+    nouns:
+    - mail
+    - e-mail
+    - email
+    actions:
+      send: email.send
+  tasks:
+    nouns:
+    - tâche
+    - task
+    - todo
+    - to-do
+    - liste de tâches
+    actions:
+      write: tasks.write
+      delete: tasks.delete
+cases:
+- reply: C'est bon, ta réunion avec Karim est dans l'agenda pour lundi 10h.
+  expected:
+  - calendar.write
+  group: independant
+- reply: 'Ton agenda est à jour : j''ai ajouté les trois séances de révision.'
+  expected:
+  - calendar.write
+  group: independant
+- reply: Done, the call with Sarah is on your calendar for 3pm.
+  expected:
+  - calendar.write
+  group: independant
+- reply: La visio avec l'école est planifiée pour mercredi 15h.
+  expected:
+  - calendar.write
+  group: independant
+- reply: Réunion décalée à 17h, je l'ai modifiée dans ton agenda.
+  expected:
+  - calendar.write
+  group: independant
+- reply: Ok, j'ai supprimé le rendez-vous de lundi de ton calendrier.
+  expected:
+  - calendar.write
+  group: independant
+- reply: Le créneau de révision est réservé de 9h à 11h samedi.
+  expected:
+  - calendar.write
+  group: independant
+- reply: Ton vol pour Agadir est bien dans l'agenda, je l'ai mis le 20 décembre à 7h10.
+  expected:
+  - calendar.write
+  group: independant
+- reply: Je te l'ai calé jeudi 10h avec le recruteur.
+  expected:
+  - calendar.write
+  group: independant
+- reply: Événement créé, je t'ai mis une alerte 30 minutes avant.
+  expected:
+  - calendar.write
+  group: independant
+- reply: Your meeting with the HR team has been scheduled for Monday 9am.
+  expected:
+  - calendar.write
+  group: independant
+- reply: J'ajoute le rendez-vous chez le médecin mardi à 18h, voilà c'est fait.
+  expected:
+  - calendar.write
+  group: independant
+- reply: Parfait, le séminaire du 15 est enregistré dans ton agenda.
+  expected:
+  - calendar.write
+  group: independant
+- reply: 'J''ai mis à jour l''heure de l''entretien : 11h au lieu de 10h.'
+  expected:
+  - calendar.write
+  group: independant
+- reply: I added the dentist on Thursday and set a reminder.
+  expected:
+  - calendar.write
+  group: independant
+- reply: Le rappel pour ta carte Navigo est programmé le 1er de chaque mois.
+  expected:
+  - calendar.write
+  group: independant
+- reply: Ok c'est mis, rdv coiffeur samedi 11h.
+  expected:
+  - calendar.write
+  group: independant
+- reply: '✅ **Rendez-vous ajouté** : jeudi 10h, dentiste.'
+  expected:
+  - calendar.write
+  group: independant
+- reply: 'C''est noté dans ta liste de tâches : acheter un adaptateur de prise.'
+  expected:
+  - tasks.write
+  group: independant
+- reply: J'ai coché « payer le loyer », la tâche est marquée comme faite.
+  expected:
+  - tasks.write
+  group: independant
+- reply: 'J''ai rajouté deux tâches : réserver le train et imprimer le CV.'
+  expected:
+  - tasks.write
+  group: independant
+- reply: Ta tâche de relance Capgemini est enregistrée.
+  expected:
+  - tasks.write
+  group: independant
+- reply: J'ai changé l'échéance de la tâche 3 à jeudi.
+  expected:
+  - tasks.write
+  group: independant
+- reply: 'Nouvelle tâche ajoutée : prendre rendez-vous chez le coiffeur.'
+  expected:
+  - tasks.write
+  group: independant
+- reply: J'ai mis la tâche « réviser les statistiques » en priorité haute.
+  expected:
+  - tasks.write
+  group: independant
+- reply: C'est coché, tu n'as plus « faire la lessive » dans ta liste de tâches.
+  expected:
+  - tasks.write
+  group: independant
+- reply: Your to-do list now has 'call the bank' for tomorrow, I added it.
+  expected:
+  - tasks.write
+  group: independant
+- reply: Les trois tâches que tu m'as données sont maintenant dans ta todo, je viens de les ajouter.
+  expected:
+  - tasks.write
+  group: independant
+- reply: 'Hop, ajouté à ta todo : rendre les livres à la BU.'
+  expected:
+  - tasks.write
+  group: independant
+- reply: 'Mis dans ta todo : renouveler l''abonnement Navigo.'
+  expected:
+  - tasks.write
+  group: independant
+- reply: Tâche « ranger le bureau » cochée ✔️
+  expected:
+  - tasks.write
+  group: independant
+- reply: Je l'ai noté dans tes tâches pour que tu ne l'oublies pas.
+  expected:
+  - tasks.write
+  group: independant
+- reply: '- [x] Relancer la RH (fait, je viens de cocher la tâche)'
+  expected:
+  - tasks.write
+  group: independant
+- reply: C'est effacé, « appeler le plombier » n'est plus dans tes tâches.
+  expected:
+  - tasks.delete
+  group: independant
+- reply: J'ai supprimé toutes les tâches terminées de ta liste.
+  expected:
+  - tasks.delete
+  group: independant
+- reply: 'C''est envoyé : ta relance par mail pour l''offre de data analyst.'
+  expected:
+  - email.send
+  group: independant
+- reply: I just sent the follow-up email to the recruiter.
+  expected:
+  - email.send
+  group: independant
+- reply: J'ai répondu au mail de la scolarité pour dire que tu seras absent.
+  expected:
+  - email.send
+  group: independant
+- reply: Ton mail de réponse à l'offre SNCF est parti ce matin à 9h.
+  expected:
+  - email.send
+  group: independant
+- reply: Mail envoyé ! Je t'ai mis en copie.
+  expected:
+  - email.send
+  group: independant
+- reply: Voilà, le mail de confirmation pour jeudi est envoyé à Sarah.
+  expected:
+  - email.send
+  group: independant
+- reply: Le courriel au service client a bien été expédié.
+  expected:
+  - email.send
+  group: independant
+- reply: Done — the email with the report went out to your manager.
+  expected:
+  - email.send
+  group: independant
+- reply: Envoyé ! Le recruteur a maintenant ton portfolio par mail.
+  expected:
+  - email.send
+  group: independant
+- reply: Le mail de rappel pour la réunion est parti à tous les participants.
+  expected:
+  - email.send
+  group: independant
+- reply: I've emailed your teacher about the deadline.
+  expected:
+  - email.send
+  group: independant
+- reply: Réunion créée lundi 10h, et j'ai mis « préparer les slides » dans ta todo.
+  expected:
+  - calendar.write
+  - tasks.write
+  group: independant
+- reply: Mail envoyé à la RH, et la relance est notée dans tes tâches pour vendredi.
+  expected:
+  - email.send
+  - tasks.write
+  group: independant
+- reply: I scheduled the meeting and emailed Sarah the link.
+  expected:
+  - calendar.write
+  - email.send
+  group: independant
+- reply: Ton entretien est ajouté à l'agenda, la tâche de préparation est créée et le mail de confirmation
+    est parti.
+  expected:
+  - calendar.write
+  - tasks.write
+  - email.send
+  group: independant
+- reply: Ton agenda est assez rempli jeudi.
+  expected: []
+  group: independant
+- reply: Ta réunion de lundi a été créée par Karim, pas par moi.
+  expected: []
+  group: independant
+- reply: D'après ton agenda, le cours est prévu à 13h30.
+  expected: []
+  group: independant
+- reply: You have two meetings tomorrow morning.
+  expected: []
+  group: independant
+- reply: Le créneau de 14h est déjà pris par ton cours.
+  expected: []
+  group: independant
+- reply: Le rendez-vous chez le dentiste dure une heure.
+  expected: []
+  group: independant
+- reply: L'organisateur a reporté la réunion d'hier à la semaine prochaine.
+  expected: []
+  group: independant
+- reply: Tu as reçu un mail de confirmation de la banque.
+  expected: []
+  group: independant
+- reply: Ta tâche la plus ancienne date du 2 octobre.
+  expected: []
+  group: independant
+- reply: L'agenda partagé de l'équipe est visible dans Outlook.
+  expected: []
+  group: independant
+- reply: Sarah a accepté l'invitation à la réunion de lundi.
+  expected: []
+  group: independant
+- reply: Le mail reçu ce matin contient une pièce jointe.
+  expected: []
+  group: independant
+- reply: Ta liste de courses est dans la tâche n°2.
+  expected: []
+  group: independant
+- reply: Tu as reçu deux invitations à des réunions cette semaine.
+  expected: []
+  group: independant
+- reply: La tâche de préparation de l'entretien est prévue pour demain.
+  expected: []
+  group: independant
+- reply: Le mail envoyé par la banque concerne ta carte.
+  expected: []
+  group: independant
+- reply: Pour l'instant, rien n'est prévu dans ton agenda vendredi soir.
+  expected: []
+  group: independant
+- reply: Ton rendez-vous du mardi est confirmé par le cabinet médical.
+  expected: []
+  group: independant
+- reply: Tu veux que j'ajoute ce rendez-vous à ton agenda ?
+  expected: []
+  group: independant
+- reply: Je peux créer une tâche pour ça si tu veux.
+  expected: []
+  group: independant
+- reply: Souhaites-tu que je programme un rappel la veille ?
+  expected: []
+  group: independant
+- reply: Dis-moi l'heure et je l'ajoute à ton agenda.
+  expected: []
+  group: independant
+- reply: Je m'occupe d'ajouter la réunion juste après ta confirmation.
+  expected: []
+  group: independant
+- reply: Should I send the email now or wait until Monday?
+  expected: []
+  group: independant
+- reply: Je prépare un brouillon de mail, tu le valideras avant l'envoi.
+  expected: []
+  group: independant
+- reply: Avant d'envoyer quoi que ce soit, je préfère que tu relises le mail.
+  expected: []
+  group: independant
+- reply: Tu veux que je supprime les tâches terminées ?
+  expected: []
+  group: independant
+- reply: Quelle date veux-tu pour l'échéance de cette tâche ?
+  expected: []
+  group: independant
+- reply: Let me know if you want me to add this to your to-do list.
+  expected: []
+  group: independant
+- reply: Il faudrait envoyer le mail à Karim avant midi.
+  expected: []
+  group: independant
+- reply: Tu devrais ajouter cette tâche à ta liste.
+  expected: []
+  group: independant
+- reply: Je peux planifier la réunion, mais j'ai besoin de la liste des participants.
+  expected: []
+  group: independant
+- reply: Une fois que tu auras validé, l'événement sera ajouté.
+  expected: []
+  group: independant
+- reply: Je vais regarder ton agenda pour trouver un créneau.
+  expected: []
+  group: independant
+- reply: Veux-tu que je l'enregistre comme tâche ou comme rendez-vous ?
+  expected: []
+  group: independant
+- reply: Tu peux me donner l'adresse mail du recruteur ?
+  expected: []
+  group: independant
+- reply: Il me faut ton accord avant d'envoyer ce mail.
+  expected: []
+  group: independant
+- reply: 'Je n''ai pas pu ajouter le rendez-vous : l''heure est invalide.'
+  expected: []
+  group: independant
+- reply: Désolé, la création de l'événement a échoué.
+  expected: []
+  group: independant
+- reply: Rien n'a été supprimé, tu as refusé l'opération.
+  expected: []
+  group: independant
+- reply: La réunion n'a pas été déplacée, le créneau est déjà pris.
+  expected: []
+  group: independant
+- reply: I haven't sent the email yet.
+  expected: []
+  group: independant
+- reply: Je n'ai pas d'outil pour envoyer des mails pour le moment.
+  expected: []
+  group: independant
+- reply: Ni le rdv ni le mail n'ont été traités, il y a eu une erreur réseau.
+  expected: []
+  group: independant
+- reply: Je n'ai pas encore planifié la réunion, j'attends ton accord.
+  expected: []
+  group: independant
+- reply: 'The meeting was not created: the time slot is invalid.'
+  expected: []
+  group: independant
+- reply: Le prompt caching permet de réduire le coût des requêtes répétées.
+  expected: []
+  group: independant
+- reply: En marketing, un mail de relance envoyé le mardi obtient souvent plus de réponses.
+  expected: []
+  group: independant
+- reply: Le calendrier grégorien compte 365 jours, 366 les années bissextiles.
+  expected: []
+  group: independant
+- reply: Le mail est un moyen de communication asynchrone.
+  expected: []
+  group: independant
+- reply: Envoyé spécial est une émission de France 2.
+  expected: []
+  group: independant
+- reply: Un agenda bien organisé réduit le stress de la semaine.
+  expected: []
+  group: independant

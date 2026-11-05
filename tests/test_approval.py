@@ -45,7 +45,7 @@ def make_registry(skill: VaultSkill) -> SkillRegistry:
         description="Test.",
         examples=[],
         requires_approval=["vault.delete"],
-        claims={"vault.delete": ["effacé", "efface", "secret"]},
+        claims={"nouns": ["secret"], "actions": {"delete": "vault.delete"}},
     )
     tools = skill.tools()
     return SkillRegistry(skills=[LoadedSkill(manifest, skill, tools)], tools=tools, errors=[])

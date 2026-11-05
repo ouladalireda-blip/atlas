@@ -6,6 +6,7 @@ import pytest
 from typer.testing import CliRunner
 
 from atlas.config import Settings
+from atlas.core.lexicon import Domain
 from atlas.interfaces import cli
 from atlas.skills.base import SkillContext, call
 from atlas.skills.loader import load_skills
@@ -132,10 +133,10 @@ def test_duplicate_skill_name_is_refused(tmp_path: Path) -> None:
     assert [error.folder for error in registry.errors] == ["second"]
 
 
-def test_claim_vocabulary_merges_skills_without_duplicates(tmp_path: Path) -> None:
-    claims_a = "claims:\n  shared.write: [agenda, event]\n"
-    claims_b = "claims:\n  shared.write: [event, meeting]\n"
-    claims_c = "claims:\n  other.send: [mail]\n"
+def test_claim_domains_come_from_each_skill_under_its_name(tmp_path: Path) -> None:
+    claims_a = "claims:\n  nouns: [agenda, event]\n  actions: {write: shared.write}\n"
+    claims_b = "claims:\n  nouns: [event, meeting]\n  actions: {write: shared.write}\n"
+    claims_c = "claims:\n  nouns: [mail]\n  actions: {send: other.send}\n"
     write_skill(
         tmp_path, "a", manifest_text("a") + claims_a, skill_code("a", effect="shared.write")
     )
@@ -148,10 +149,11 @@ def test_claim_vocabulary_merges_skills_without_duplicates(tmp_path: Path) -> No
     registry = load_skills(tmp_path)
 
     assert registry.errors == []
-    assert registry.claim_vocabulary() == {
-        "shared.write": ["agenda", "event", "meeting"],
-        "other.send": ["mail"],
-    }
+    assert registry.claim_domains() == {
+        "a": Domain(nouns=("agenda", "event"), actions={"write": "shared.write"}),
+        "b": Domain(nouns=("event", "meeting"), actions={"write": "shared.write"}),
+        "c": Domain(nouns=("mail",), actions={"send": "other.send"}),
+    }  # « d » ne déclare rien : il n'a pas de domaine
 
 
 def test_requires_approval_merges_manifests(tmp_path: Path) -> None:
@@ -170,7 +172,10 @@ def test_requires_approval_is_empty_without_skills(tmp_path: Path) -> None:
 
 
 def test_declared_effects_are_accepted(tmp_path: Path) -> None:
-    manifest = manifest_text("a", "[calendar.write]") + "claims:\n  calendar.write: [agenda]\n"
+    manifest = (
+        manifest_text("a", "[calendar.write]")
+        + "claims:\n  nouns: [agenda]\n  actions: {write: calendar.write}\n"
+    )
     write_skill(tmp_path, "a", manifest, skill_code("a", effect="calendar.write"))
 
     assert load_skills(tmp_path).errors == []
@@ -180,7 +185,11 @@ def test_declared_effects_are_accepted(tmp_path: Path) -> None:
     ("manifest", "field"),
     [
         (manifest_text("bad", "[calendar.wirte]"), "requires_approval"),
-        (manifest_text("bad") + "claims:\n  calendar.wirte: [agenda]\n", "claims"),
+        (
+            manifest_text("bad")
+            + "claims:\n  nouns: [agenda]\n  actions: {write: calendar.wirte}\n",
+            "claims",
+        ),
     ],
     ids=["requires_approval", "claims"],
 )
@@ -242,3 +251,29 @@ def test_cli_shows_loading_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "Erreurs de chargement" in result.stdout
     assert "broken_manifest" in result.stdout
     assert "type=missing" in result.stdout
+
+
+def test_unknown_verb_class_in_claims_is_refused_at_load(tmp_path: Path) -> None:
+    manifest = (
+        manifest_text("bad") + "claims:\n  nouns: [agenda]\n  actions: {destroy: calendar.write}\n"
+    )
+    write_skill(tmp_path, "bad", manifest, skill_code("bad", effect="calendar.write"))
+
+    registry = load_skills(tmp_path)
+
+    assert registry.skills == []
+    assert "classes de verbes inconnues" in registry.errors[0].message
+    assert "destroy" in registry.errors[0].message
+
+
+def test_claims_with_an_effect_no_tool_declares_name_the_effect(tmp_path: Path) -> None:
+    manifest = (
+        manifest_text("bad")
+        + "claims:\n  nouns: [agenda]\n  actions: {write: calendar.write, delete: calendar.erase}\n"
+    )
+    write_skill(tmp_path, "bad", manifest, skill_code("bad", effect="calendar.write"))
+
+    registry = load_skills(tmp_path)
+
+    assert registry.skills == []
+    assert "calendar.erase" in registry.errors[0].message

@@ -8,32 +8,15 @@ examples:
   - Supprime la tâche 2.
 requires_approval:
   - tasks.delete
-# Les mots de tasks.delete sont des verbes : un participe qui figure dans le vocabulaire d'un
-# effet désigne cet effet (voir l'ADR 0002), ce qui évite d'exiger aussi un reçu tasks.write
-# pour « la tâche est supprimée ».
+# Le cœur connaît les verbes (classes write, delete, send : core/lexicon.py) ; cette compétence
+# ne déclare que ses objets et l'effet de chaque classe de verbe chez elle.
 claims:
-  tasks.write:
+  nouns:
     - tâche
     - task
     - todo
     - to-do
     - liste de tâches
-  tasks.delete:
-    - supprimé
-    - supprimée
-    - supprimés
-    - supprimées
-    - supprime
-    - effacé
-    - effacée
-    - effacés
-    - effacées
-    - efface
-    - retiré
-    - retirée
-    - retirés
-    - retirées
-    - deleted
-    - removed
-    - delete
-    - remove
+  actions:
+    write: tasks.write
+    delete: tasks.delete

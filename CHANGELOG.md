@@ -7,6 +7,24 @@ et ce projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+
+- `core/lexicon.py` : classes de verbes write, delete et send, en français et en anglais, source
+  unique des verbes du vérificateur.
+- `docs/eval-format.md` : format des fichiers d'éval, avec un en-tête modèle pour un jeu externe.
+- ADR 0005 : les verbes au cœur, les objets dans les compétences.
+- Séparation développement / test du vérificateur : `evals/split_cases.py` découpe le jeu indépendant
+  en `verifier_dev.yaml` et `verifier_test.yaml` (50/50, stratifié par effet, graine fixe).
+- Le runner d'éval affiche les chiffres par effet, mesure le jeu de test sans jamais en montrer les
+  phrases (`--test`) et vérifie des planchers (`--check`) définis dans `evals/thresholds.yaml`.
+- CI : planchers du développement à chaque push ; planchers du test (agrégats seulement) sur les
+  tags `v*` uniquement.
+- Les rapports d'éval affichent toujours les effectifs (x/n) et marquent « effectif insuffisant » toute
+  catégorie de moins de 10 phrases.
+- `run_verifier_eval.py --test CHEMIN` mesure un jeu hors du dépôt, sans jamais afficher de phrase.
+- Règle dans `CLAUDE.md` : ne jamais lire ni utiliser le jeu de test pour modifier le vérificateur.
+- ADR 0004 sur le jeu de test caché.
+
 ## [0.1.0] - 2026-11-04
 
 ### Ajouté
@@ -53,6 +71,15 @@ et ce projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- **Format de `claims` dans les manifestes** : `nouns` (objets) + `actions` (classe de verbe → effet)
+  remplacent « effet → mots ». Chaque effet cité doit être déclaré par un outil, chaque classe doit
+  être connue du cœur. Le manifeste de `tasks` est mis à jour. `SkillRegistry.claim_vocabulary()`
+  devient `claim_domains()`.
+- **Vérificateur** : l'effet est la classe du verbe appliquée au domaine du nom le plus proche ; une
+  classe que le domaine ne déclare pas est signalée `<domaine>.<classe>` et ne se prouve jamais.
+  Seuls les verbes du lexique comptent (plus de participe en -é quelconque).
+- **Fichiers d'éval** : `domains` remplace `vocabulary` (fichiers du dépôt convertis).
+- Planchers du développement recalés après la refonte (calendar.write, détection : 66,7 % → 64,1 %).
 - Vocabulaire `tasks.delete` : `retiré`, `retirée`, `retirés`, `retirées` (`removed` y figurait déjà).
 - `README.md` de présentation : résultats mesurés sur les deux jeux d'évaluation, architecture,
   démarrage, limites et feuille de route.

@@ -1,7 +1,9 @@
 """Vérification des affirmations d'action d'une réponse à partir des reçus d'outils.
 
-Les listes de ce module ne contiennent que de la grammaire française et anglaise. Le
-vocabulaire métier vient des manifestes des compétences.
+Le cœur connaît les verbes (`core/lexicon.py`), les compétences connaissent leurs objets (les
+noms de leur `Domain`). L'effet d'une affirmation est la classe du verbe (write, delete, send)
+appliquée au domaine du nom le plus proche. Les listes de ce module ne contiennent que de la
+grammaire française et anglaise.
 """
 
 import re
@@ -9,11 +11,18 @@ import unicodedata
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+from atlas.core.lexicon import (
+    PARTICIPLE_CLASS,
+    PRESENT_EN_CLASS,
+    PRESENT_FR_CLASS,
+    PROGRESSIVE_EN_CLASS,
+    Domain,
+)
 from atlas.core.receipts import Receipt, ReceiptStatus
 
-type ClaimVocabulary = Mapping[str, Sequence[str]]
+type Domains = Mapping[str, Domain]
 
-# Écart maximal, en mots, entre un participe passé et un mot du vocabulaire.
+# Écart maximal, en mots, entre un verbe d'action et le nom d'un domaine.
 NEAR_DISTANCE = 6
 
 _CODE = re.compile(r"```.*?(?:```|\Z)|`[^`\n]*`", re.DOTALL)
@@ -24,22 +33,7 @@ _WORD = re.compile(r"\w+")
 _GENERIC_DONE = re.compile(r"\bc est (?:bien |déjà )?fait\b|\bdone\b")
 _SENTENCE_CLOSERS = " \t!*_\"'»)"
 
-_PARTICIPLE_ENDINGS = ("é", "ée", "és", "ées", "ed")
-_IRREGULAR_PARTICIPLES = frozenset(
-    "mis mise mises pris prise prises écrit écrite écrits écrites inscrit inscrite inscrits "
-    "inscrites parti partis sent made set put written wrote paid built".split()
-)
-# Formes en -é ou -ed qui n'annoncent pas une action accomplie : auxiliaire, échec, excuse,
-# lecture, demande, ou simple mot qui a la même terminaison.
-_NON_ACTION_STEMS = "ét échou désol consult vérifi regard cherch trouv demand souhait".split()
-_NON_ACTIONS = frozenset(
-    {stem + ending for stem in _NON_ACTION_STEMS for ending in ("é", "ée", "és", "ées")}
-    | set(
-        "failed checked looked viewed searched reviewed asked requested wanted needed based "
-        "need indeed feed speed seed bed embed exceed proceed succeed red shed hundred".split()
-    )
-)
-# Un mot en -é placé juste après un déterminant est un nom : « ta journée », « the added ».
+# Un participe placé juste après un déterminant est un nom : « une mise à jour », « the set ».
 # Le français « a » n'y figure pas : c'est aussi l'auxiliaire de « a ajouté ».
 _DETERMINERS = frozenset(
     "le la les l un une des du de d au aux ma ta sa mon ton son mes tes ses notre votre nos "
@@ -72,28 +66,6 @@ _CLITICS = frozenset("l le la les te t vous m me y en bien déjà aussi vraiment
 _ENGLISH_ADVERBS = frozenset("just now also already really".split())
 # Une proposition subordonnée (« que je programme ») n'est pas une affirmation.
 _SUBORDINATORS = frozenset({"que", "qu"})
-# Verbes d'écriture au présent, 1re personne du singulier. Liste positive : « j'utilise ton
-# agenda » ou « je lis ton agenda » décrivent une lecture, pas une action accomplie.
-_WRITE_VERBS_FR = frozenset(
-    """ajoute envoie crée programme planifie supprime efface annule modifie déplace enregistre
-    réserve transmets mets fixe inscris écris rédige publie sauvegarde archive valide note
-    renomme remplace corrige synchronise confirme poste""".split()
-)
-_WRITE_VERBS_EN = frozenset(
-    """add send create schedule book delete remove cancel update move save set write post
-    forward publish register record rename replace fix confirm""".split()
-)
-
-
-def _progressive_forms(verb: str) -> set[str]:
-    """Retourne les formes en -ing d'un verbe anglais : save → saving, set → setting."""
-    forms = {verb + "ing", verb + verb[-1] + "ing"}
-    if verb.endswith("e"):
-        forms.add(verb[:-1] + "ing")
-    return forms
-
-
-_PROGRESSIVE_EN = frozenset(form for verb in _WRITE_VERBS_EN for form in _progressive_forms(verb))
 
 # « je (peux) (te|vous) confirme(r) que », « je t'assure que », « i can confirm » : l'auxiliaire
 # n'exprime pas ici une possibilité, c'est une affirmation.
@@ -120,10 +92,15 @@ _QUESTION_OPENERS = frozenset(
 
 @dataclass(frozen=True)
 class Claim:
-    """Affirmation d'action ; effect vaut None si n'importe quelle écriture la prouve."""
+    """Affirmation d'action ; effect vaut None si n'importe quelle écriture la prouve.
+
+    declared vaut False quand le domaine du nom ne déclare pas la classe du verbe : l'effet est
+    alors « <domaine>.<classe> » et aucun reçu ne peut le prouver.
+    """
 
     effect: str | None
     text: str
+    declared: bool = True
 
 
 @dataclass(frozen=True)
@@ -141,15 +118,12 @@ def _tokens(text: str) -> list[str]:
     return _WORD.findall(normalized.replace("n't", " not "))
 
 
-def _is_participle(tokens: Sequence[str], index: int) -> bool:
-    """Indique si le mot à cette position se lit comme un participe passé d'action."""
-    token = tokens[index]
-    if token in _NON_ACTIONS:
-        return False
-    has_form = token in _IRREGULAR_PARTICIPLES or (
-        len(token) > 2 and token.endswith(_PARTICIPLE_ENDINGS)
-    )
-    return has_form and (index == 0 or tokens[index - 1] not in _DETERMINERS)
+def _participle_class(tokens: Sequence[str], index: int) -> str | None:
+    """Retourne la classe du participe passé à cette position, ou None s'il n'y en a pas."""
+    verb_class = PARTICIPLE_CLASS.get(tokens[index])
+    if verb_class is None or (index > 0 and tokens[index - 1] in _DETERMINERS):
+        return None
+    return verb_class
 
 
 def _starts_condition(tokens: Sequence[str], index: int) -> bool:
@@ -171,7 +145,7 @@ def _split_propositions(sentence: str) -> list[str]:
         current = first
         for part in others:
             tokens = _tokens(part)
-            if tokens and _is_participle(tokens, 0):
+            if tokens and _participle_class(tokens, 0) is not None:
                 current = f"{current} et {part}"
             else:
                 propositions.append(current)
@@ -207,7 +181,7 @@ def _affirmative_propositions(reply: str) -> list[str]:
 
 
 def _matches_at(tokens: Sequence[str], start: int, word: Sequence[str]) -> bool:
-    """Compare un mot du vocabulaire aux mots du texte, en acceptant le pluriel."""
+    """Compare un nom du domaine aux mots du texte, en acceptant le pluriel."""
     chunk = tokens[start : start + len(word)]
     return len(chunk) == len(word) and all(
         token in (expected, f"{expected}s", f"{expected}x")
@@ -215,51 +189,47 @@ def _matches_at(tokens: Sequence[str], start: int, word: Sequence[str]) -> bool:
     )
 
 
-def _is_near(tokens: Sequence[str], index: int, word: Sequence[str]) -> bool:
-    """Indique si un mot du vocabulaire se trouve assez près de la position donnée."""
-    if not word:
-        return False
-    first = max(0, index - NEAR_DISTANCE)
-    last = min(len(tokens), index + NEAR_DISTANCE + 1)
-    return any(_matches_at(tokens, start, word) for start in range(first, last))
-
-
-def _present_verb_after(tokens: Sequence[str], subject: int) -> int | None:
-    """Retourne la position du verbe d'écriture au présent qui suit « je » ou « i »."""
+def _present_verb_after(tokens: Sequence[str], subject: int) -> tuple[int, str] | None:
+    """Retourne (position, classe) du verbe d'action au présent qui suit « je » ou « i »."""
     if subject > 0 and tokens[subject - 1] in _SUBORDINATORS:
         return None
-    word = tokens[subject]
     position = subject + 1
-    if word in _FRENCH_SUBJECTS:
+    if tokens[subject] in _FRENCH_SUBJECTS:
         while position < len(tokens) and tokens[position] in _CLITICS:
             position += 1
-        if position < len(tokens) and tokens[position] in _WRITE_VERBS_FR:
-            return position
-        return None
-    while position < len(tokens) and tokens[position] in _ENGLISH_ADVERBS:
-        position += 1
-    if position < len(tokens) and tokens[position] in {"m", "am"}:
-        # « i'm scheduling » : forme progressive.
-        position += 1
-        return position if position < len(tokens) and tokens[position] in _PROGRESSIVE_EN else None
-    if position < len(tokens) and tokens[position] in _WRITE_VERBS_EN:
-        return position
-    return None
+        table = PRESENT_FR_CLASS
+    else:
+        while position < len(tokens) and tokens[position] in _ENGLISH_ADVERBS:
+            position += 1
+        table = PRESENT_EN_CLASS
+        if position < len(tokens) and tokens[position] in {"m", "am"}:
+            # « i'm scheduling » : forme progressive.
+            position += 1
+            table = PROGRESSIVE_EN_CLASS
+    verb_class = table.get(tokens[position]) if position < len(tokens) else None
+    return None if verb_class is None else (position, verb_class)
 
 
-def _present_actions(tokens: Sequence[str]) -> set[int]:
-    """Retourne les positions des verbes d'action conjugués au présent à la 1re personne."""
-    positions = (
-        _present_verb_after(tokens, index)
-        for index, token in enumerate(tokens)
-        if token in _FRENCH_SUBJECTS or token == _ENGLISH_SUBJECT
-    )
-    return {position for position in positions if position is not None}
+def _present_actions(tokens: Sequence[str]) -> dict[int, str]:
+    """Retourne position -> classe des verbes d'action conjugués au présent à la 1re personne."""
+    found: dict[int, str] = {}
+    for index, token in enumerate(tokens):
+        if token in _FRENCH_SUBJECTS or token == _ENGLISH_SUBJECT:
+            match = _present_verb_after(tokens, index)
+            if match is not None:
+                found[match[0]] = match[1]
+    return found
 
 
-def _assertion_auxiliaries(tokens: Sequence[str]) -> set[int]:
-    """Retourne les positions de « peux » ou « can » employés dans une formule d'affirmation."""
-    found: set[int] = set()
+def _assertion_formulas(tokens: Sequence[str]) -> tuple[set[int], set[int]]:
+    """Repère les formules « je (peux) te confirme que », « je t'assure que », « i can confirm ».
+
+    Retourne (positions de « peux »/« can », positions du verbe de la formule). L'auxiliaire n'y
+    est pas une possibilité mais une affirmation ; le verbe (« confirme ») dit ce que l'assistant
+    déclare, pas une action faite sur l'objet, donc il ne compte pas comme verbe d'action.
+    """
+    auxiliaries: set[int] = set()
+    verbs: set[int] = set()
     for start, token in enumerate(tokens):
         position = start + 1
         auxiliary = None
@@ -271,15 +241,19 @@ def _assertion_auxiliaries(tokens: Sequence[str]) -> set[int]:
             verb = tokens[position : position + 1]
             follows = tokens[position + 1 : position + 2]
             if verb and verb[0] in _ASSERTION_VERBS_FR and follows and follows[0] in _SUBORDINATORS:
+                verbs.add(position)
                 if auxiliary is not None:
-                    found.add(auxiliary)
+                    auxiliaries.add(auxiliary)
         elif token == _ENGLISH_SUBJECT:
             if tokens[position : position + 1] == ["can"]:
                 auxiliary, position = position, position + 1
             verb = tokens[position : position + 1]
-            if verb and verb[0] in _ASSERTION_VERBS_EN and auxiliary is not None:
-                found.add(auxiliary)
-    return found
+            that = tokens[position + 1 : position + 2] == ["that"]
+            if verb and verb[0] in _ASSERTION_VERBS_EN and (auxiliary is not None or that):
+                verbs.add(position)
+                if auxiliary is not None:
+                    auxiliaries.add(auxiliary)
+    return auxiliaries, verbs
 
 
 def _is_restriction(tokens: Sequence[str], index: int) -> bool:
@@ -296,7 +270,7 @@ def _is_restriction(tokens: Sequence[str], index: int) -> bool:
 
 def _claim_limit(tokens: Sequence[str]) -> int:
     """Retourne la position à partir de laquelle plus rien n'est affirmé (marqueur bloquant)."""
-    exempt = _assertion_auxiliaries(tokens)
+    exempt, _ = _assertion_formulas(tokens)
     for index, token in enumerate(tokens):
         if _starts_condition(tokens, index):
             return index
@@ -305,45 +279,51 @@ def _claim_limit(tokens: Sequence[str]) -> int:
     return len(tokens)
 
 
-def _effects_around(tokens: Sequence[str], index: int, vocabulary: ClaimVocabulary) -> list[str]:
-    """Retourne les effets visés par le verbe ou participe à cette position.
+def _nearest_domain(tokens: Sequence[str], index: int, domains: Domains) -> str | None:
+    """Retourne le domaine dont un nom est le plus proche du verbe, ou None s'il n'y en a aucun.
 
-    Si ce mot est lui-même dans le vocabulaire d'un effet (« supprimé » pour tasks.delete), il
-    désigne l'action et seuls ces effets comptent. Sinon, tout effet dont un mot est proche
-    convient : les noms (« tâche ») ne disent pas quelle action a eu lieu.
+    À distance égale, le nom qui suit le verbe l'emporte (« ajouté la tâche »), puis l'ordre des
+    domaines.
     """
-    near = [
-        effect
-        for effect, words in vocabulary.items()
-        if any(_is_near(tokens, index, _tokens(word)) for word in words)
-    ]
-    own = [
-        effect
-        for effect in near
-        if any(_matches_at(tokens, index, _tokens(word)) for word in vocabulary[effect])
-    ]
-    return own or near
+    best: tuple[int, int, int, str] | None = None
+    first = max(0, index - NEAR_DISTANCE)
+    last = min(len(tokens), index + NEAR_DISTANCE + 1)
+    for order, (name, domain) in enumerate(domains.items()):
+        for noun in domain.nouns:
+            words = _tokens(noun)
+            for start in range(first, last):
+                if words and _matches_at(tokens, start, words):
+                    key = (abs(start - index), 0 if start > index else 1, order, name)
+                    best = key if best is None or key < best else best
+    return None if best is None else best[3]
 
 
-def _claimed_effects(tokens: Sequence[str], vocabulary: ClaimVocabulary) -> list[str | None]:
-    """Retourne les effets affirmés par une proposition ; None désigne la règle générique."""
+def _claimed(tokens: Sequence[str], domains: Domains) -> list[tuple[str | None, bool]]:
+    """Retourne les (effet, déclaré) affirmés par une proposition ; None est la règle générique."""
     limit = _claim_limit(tokens)
     present = _present_actions(tokens)
-    effects: list[str | None] = []
+    _, formula_verbs = _assertion_formulas(tokens)
+    claimed: list[tuple[str | None, bool]] = []
     if _GENERIC_DONE.search(" ".join(tokens[:limit])):
-        effects.append(None)
+        claimed.append((None, True))
     for index in range(limit):
-        if _is_participle(tokens, index) or index in present:
-            effects.extend(_effects_around(tokens, index, vocabulary))
-    return effects
+        verb_class = present.get(index) or _participle_class(tokens, index)
+        if verb_class is None or index in formula_verbs:
+            continue
+        name = _nearest_domain(tokens, index, domains)
+        if name is None:
+            continue
+        effect = domains[name].actions.get(verb_class)
+        claimed.append((effect, True) if effect else (f"{name}.{verb_class}", False))
+    return claimed
 
 
-def detect_claims(reply: str, vocabulary: ClaimVocabulary) -> list[Claim]:
+def detect_claims(reply: str, domains: Domains) -> list[Claim]:
     """Retourne les affirmations d'action de la réponse, sans doublon."""
     claims: dict[Claim, None] = {}
     for proposition in _affirmative_propositions(reply):
-        for effect in _claimed_effects(_tokens(proposition), vocabulary):
-            claims[Claim(effect, proposition)] = None
+        for effect, declared in _claimed(_tokens(proposition), domains):
+            claims[Claim(effect, proposition, declared)] = None
     return list(claims)
 
 
@@ -354,14 +334,19 @@ def _proves(receipt: Receipt, claim: Claim) -> bool:
     return receipt.effect == claim.effect
 
 
-def verify(reply: str, receipts: Sequence[Receipt], vocabulary: ClaimVocabulary) -> Verification:
-    """Confronte la réponse aux reçus du tour ; seul le statut ok compte comme preuve."""
-    claims = detect_claims(reply, vocabulary)
+def verify(reply: str, receipts: Sequence[Receipt], domains: Domains) -> Verification:
+    """Confronte la réponse aux reçus du tour ; seul le statut ok compte comme preuve.
+
+    Une affirmation non déclarée par son domaine n'est jamais prouvée, quels que soient les reçus.
+    """
+    claims = detect_claims(reply, domains)
     successful = [receipt for receipt in receipts if receipt.status is ReceiptStatus.OK]
     unsupported: list[Claim] = []
     supported_by: dict[Claim, list[Receipt]] = {}
     for claim in claims:
-        proofs = [receipt for receipt in successful if _proves(receipt, claim)]
+        proofs = (
+            [receipt for receipt in successful if _proves(receipt, claim)] if claim.declared else []
+        )
         if proofs:
             supported_by[claim] = proofs
         else:
@@ -369,14 +354,20 @@ def verify(reply: str, receipts: Sequence[Receipt], vocabulary: ClaimVocabulary)
     return Verification(claims=claims, unsupported=unsupported, supported_by=supported_by)
 
 
+def _describe(claim: Claim) -> str:
+    if not claim.declared:
+        return (
+            f"- « {claim.text} » (action « {claim.effect} » : aucun outil ne la déclare, "
+            "donc rien ne peut la prouver)"
+        )
+    return f"- « {claim.text} » (effet attendu : {claim.effect or 'une action d’écriture'})"
+
+
 def correction_message(verification: Verification) -> str | None:
     """Rédige la consigne de correction pour le modèle ; None si tout est prouvé."""
     if not verification.unsupported:
         return None
-    lines = "\n".join(
-        f"- « {claim.text} » (effet attendu : {claim.effect or 'une action d’écriture'})"
-        for claim in verification.unsupported
-    )
+    lines = "\n".join(_describe(claim) for claim in verification.unsupported)
     return (
         "Ta réponse affirme des actions qu'aucun reçu d'outil réussi ne prouve :\n"
         f"{lines}\n"

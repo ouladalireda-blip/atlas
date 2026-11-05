@@ -116,7 +116,7 @@ class Agent:
         self._store = store
         self._executor = ToolExecutor(registry, store)
         self._usage = usage_log
-        self._vocabulary = registry.claim_vocabulary()
+        self._domains = registry.claim_domains()
         self._tools = [spec.to_openai() for spec in registry.tools]
         self._max_tool_rounds = max_tool_rounds
         self._history_messages = history_messages
@@ -194,7 +194,7 @@ class Agent:
             if not content:
                 return self._fail(turn_id, "Le modèle a renvoyé une réponse vide."), Verdict.ERROR
 
-            verification = verify(content, self._store.for_turn(turn_id), self._vocabulary)
+            verification = verify(content, self._store.for_turn(turn_id), self._domains)
             correction = correction_message(verification)
             if correction is None:
                 if corrected:

@@ -258,7 +258,7 @@ def test_claims_distinguish_adding_from_deleting(
 ) -> None:
     receipts = [receipt(proof)] if proof else []
 
-    result = verify(reply, receipts, registry.claim_vocabulary())
+    result = verify(reply, receipts, registry.claim_domains())
 
     assert bool(result.unsupported) is unsupported
     assert result.claims  # la phrase est bien reconnue comme une affirmation

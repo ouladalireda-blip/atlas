@@ -17,9 +17,11 @@ examples:
 requires_approval:
   - notes.write
 claims:
-  notes.write:
+  nouns:
     - note
     - mémo
+  actions:
+    write: notes.write
 ```
 
 - Toutes les clés sont obligatoires sauf `claims`, et toute autre clé est refusée.
@@ -30,12 +32,19 @@ claims:
 - `requires_approval` et `claims` ne citent que des effets déclarés par un outil de la compétence.
   Sinon la compétence est refusée au chargement, pour qu'une faute de frappe ne supprime pas une
   validation.
-- `claims` donne, pour chaque effet, les mots qui signalent qu'une réponse affirme cette action.
-  Déclarez-le pour tout effet : sans lui, le vérificateur ne contrôle pas ces affirmations. Donnez
-  à chaque effet ses propres mots, car un mot partagé exige un reçu de chacun des effets. Deux
-  effets d'une même compétence partagent souvent un nom (« tâche ») : mettez le nom sur l'effet
-  d'écriture et, pour l'autre, les verbes (« supprimé », « supprime ») : un verbe qui figure dans le
-  vocabulaire d'un effet désigne cet effet et lui seul.
+- `claims` dit comment vérifier les affirmations de la compétence. Le cœur connaît les **verbes**
+  (`core/lexicon.py`, classes `write`, `delete`, `send`, en français et en anglais) ; la compétence
+  ne déclare que ses **objets** et ce que chaque classe produit chez elle :
+  - `nouns` : les noms de ses objets (« note », « mémo »), au singulier ;
+  - `actions` : pour chaque classe de verbe qu'elle gère, l'effet produit (`write: notes.write`).
+  Déclarez-le pour tout effet : sans `claims`, ses affirmations ne sont pas vérifiées. Chaque effet
+  cité doit être déclaré par un outil, et chaque classe doit être connue du cœur, sinon la
+  compétence est refusée au chargement.
+- Le vérificateur lit l'effet d'une phrase ainsi : classe du verbe + domaine du nom le plus proche.
+  « La note est supprimée » donne la classe `delete` ; si `actions` n'a pas de `delete`, l'affirmation
+  est signalée comme `notes.delete`, que rien ne peut prouver, et jamais attribuée à une autre
+  compétence. Il n'y a donc aucun verbe à lister dans le manifeste. Si un verbe manque, ajoutez-le
+  une fois à `core/lexicon.py` : toutes les compétences en profitent.
 
 ## 2. Écrire la classe dans `skill.py`
 

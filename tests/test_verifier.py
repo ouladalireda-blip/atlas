@@ -2,12 +2,16 @@
 
 import pytest
 
+from atlas.core.lexicon import Domain
 from atlas.core.receipts import Receipt, ReceiptStatus
 from atlas.core.verifier import Claim, correction_message, detect_claims, verify
 
-VOCABULARY = {
-    "calendar.write": ["événement", "agenda", "rendez-vous", "event", "calendar"],
-    "email.send": ["mail", "e-mail", "email"],
+DOMAINS = {
+    "calendar": Domain(
+        nouns=("événement", "agenda", "rendez-vous", "event", "calendar"),
+        actions={"write": "calendar.write"},
+    ),
+    "email": Domain(nouns=("mail", "e-mail", "email"), actions={"send": "email.send"}),
 }
 ORIGINAL_BUG = "Confirmé, l'événement est ajouté à ton agenda."
 
@@ -17,11 +21,11 @@ def receipt(effect: str | None, status: ReceiptStatus = ReceiptStatus.OK, id: in
 
 
 def effects(reply: str) -> list[str | None]:
-    return [claim.effect for claim in detect_claims(reply, VOCABULARY)]
+    return [claim.effect for claim in detect_claims(reply, DOMAINS)]
 
 
 def test_original_bug_without_receipt_is_unsupported() -> None:
-    result = verify(ORIGINAL_BUG, [], VOCABULARY)
+    result = verify(ORIGINAL_BUG, [], DOMAINS)
 
     assert result.unsupported == [Claim("calendar.write", "l'événement est ajouté à ton agenda.")]
     assert result.supported_by == {}
@@ -30,7 +34,7 @@ def test_original_bug_without_receipt_is_unsupported() -> None:
 def test_same_sentence_with_ok_receipt_is_supported() -> None:
     proof = receipt("calendar.write")
 
-    result = verify(ORIGINAL_BUG, [proof], VOCABULARY)
+    result = verify(ORIGINAL_BUG, [proof], DOMAINS)
 
     assert result.unsupported == []
     assert result.supported_by == {result.claims[0]: [proof]}
@@ -38,13 +42,13 @@ def test_same_sentence_with_ok_receipt_is_supported() -> None:
 
 @pytest.mark.parametrize("status", [ReceiptStatus.ERROR, ReceiptStatus.PENDING_APPROVAL])
 def test_receipt_without_ok_status_proves_nothing(status: ReceiptStatus) -> None:
-    result = verify(ORIGINAL_BUG, [receipt("calendar.write", status)], VOCABULARY)
+    result = verify(ORIGINAL_BUG, [receipt("calendar.write", status)], DOMAINS)
 
     assert len(result.unsupported) == 1
 
 
 def test_receipt_of_another_effect_proves_nothing() -> None:
-    result = verify(ORIGINAL_BUG, [receipt("email.send")], VOCABULARY)
+    result = verify(ORIGINAL_BUG, [receipt("email.send")], DOMAINS)
 
     assert len(result.unsupported) == 1
 
@@ -52,7 +56,7 @@ def test_receipt_of_another_effect_proves_nothing() -> None:
 def test_each_claim_needs_its_own_receipt() -> None:
     reply = "J'ai créé l'événement et j'ai envoyé le mail."
 
-    result = verify(reply, [receipt("calendar.write")], VOCABULARY)
+    result = verify(reply, [receipt("calendar.write")], DOMAINS)
 
     assert [claim.effect for claim in result.unsupported] == ["email.send"]
 
@@ -70,7 +74,7 @@ def test_each_claim_needs_its_own_receipt() -> None:
     ],
 )
 def test_negation_is_not_a_claim(reply: str) -> None:
-    assert detect_claims(reply, VOCABULARY) == []
+    assert detect_claims(reply, DOMAINS) == []
 
 
 @pytest.mark.parametrize(
@@ -89,7 +93,7 @@ def test_negation_is_not_a_claim(reply: str) -> None:
     ],
 )
 def test_future_or_possibility_is_not_a_claim(reply: str) -> None:
-    assert detect_claims(reply, VOCABULARY) == []
+    assert detect_claims(reply, DOMAINS) == []
 
 
 @pytest.mark.parametrize(
@@ -104,7 +108,7 @@ def test_future_or_possibility_is_not_a_claim(reply: str) -> None:
     ],
 )
 def test_question_is_not_a_claim(reply: str) -> None:
-    assert detect_claims(reply, VOCABULARY) == []
+    assert detect_claims(reply, DOMAINS) == []
 
 
 @pytest.mark.parametrize(
@@ -116,7 +120,7 @@ def test_question_is_not_a_claim(reply: str) -> None:
     ],
 )
 def test_code_is_ignored(reply: str) -> None:
-    assert detect_claims(reply, VOCABULARY) == []
+    assert detect_claims(reply, DOMAINS) == []
 
 
 @pytest.mark.parametrize(
@@ -133,7 +137,7 @@ def test_code_is_ignored(reply: str) -> None:
     ],
 )
 def test_reading_failure_and_lookalike_words_are_not_claims(reply: str) -> None:
-    assert detect_claims(reply, VOCABULARY) == []
+    assert detect_claims(reply, DOMAINS) == []
 
 
 @pytest.mark.parametrize(
@@ -176,7 +180,7 @@ def test_claims_are_detected(reply: str, expected: list[str]) -> None:
     ],
 )
 def test_condition_blocks_the_rest_of_the_sentence(reply: str) -> None:
-    assert detect_claims(reply, VOCABULARY) == []
+    assert detect_claims(reply, DOMAINS) == []
 
 
 @pytest.mark.parametrize(
@@ -197,15 +201,17 @@ def test_condition_does_not_block_what_comes_before_or_another_sentence(
 def test_distant_word_is_not_a_claim() -> None:
     reply = "Tout est validé pour ce projet long et complexe que nous suivons dans ton agenda."
 
-    assert detect_claims(reply, VOCABULARY) == []
+    assert detect_claims(reply, DOMAINS) == []
 
 
 def test_same_claim_is_reported_once() -> None:
     assert effects("L'événement est ajouté et enregistré.") == ["calendar.write"]
 
 
-def test_empty_vocabulary_word_matches_nothing() -> None:
-    assert detect_claims("Tout est validé.", {"any.write": ["", "   "]}) == []
+def test_empty_noun_matches_nothing() -> None:
+    domain = Domain(nouns=("", "   "), actions={"write": "any.write"})
+
+    assert detect_claims("Tout est validé.", {"any": domain}) == []
 
 
 @pytest.mark.parametrize("reply", ["C'est fait !", "C'est bien fait.", "Done.", "All done!"])
@@ -232,7 +238,7 @@ def test_generic_rule_respects_negation_and_hypothesis(reply: str) -> None:
 
 
 def test_correction_message_lists_unsupported_claims() -> None:
-    message = correction_message(verify(ORIGINAL_BUG + " C'est fait.", [], VOCABULARY))
+    message = correction_message(verify(ORIGINAL_BUG + " C'est fait.", [], DOMAINS))
 
     assert message is not None
     assert "l'événement est ajouté à ton agenda." in message
@@ -241,5 +247,5 @@ def test_correction_message_lists_unsupported_claims() -> None:
 
 
 def test_correction_message_is_none_when_everything_is_proved() -> None:
-    assert correction_message(verify(ORIGINAL_BUG, [receipt("calendar.write")], VOCABULARY)) is None
-    assert correction_message(verify("Bonjour !", [], VOCABULARY)) is None
+    assert correction_message(verify(ORIGINAL_BUG, [receipt("calendar.write")], DOMAINS)) is None
+    assert correction_message(verify("Bonjour !", [], DOMAINS)) is None

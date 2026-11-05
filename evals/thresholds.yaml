@@ -1,0 +1,44 @@
+# Jeux d'évaluation du vérificateur et planchers de la CI (taux entre 0 et 1).
+# Les planchers sont les niveaux mesurés : detection = minimum, false_alarms = maximum.
+# Les modifier est une décision à justifier : jamais pour faire passer la CI.
+# Régénérés par : uv run python evals/run_verifier_eval.py --write-floors
+
+sets:
+  dev:
+  - verifier_cases.yaml
+  - verifier_dev.yaml
+  test:
+  - verifier_test.yaml
+floors:
+  dev:
+    detection: 0.7105
+    false_alarms: 0.08
+    effects:
+      calendar.write:
+        detection: 0.641
+        false_alarms: 0.0358
+      email.send:
+        detection: 0.9565
+        false_alarms: 0.0079
+      tasks.write:
+        detection: 0.6428
+        false_alarms: 0.0114
+      tasks.delete:
+        detection: 1.0
+        false_alarms: 0.0
+  test:
+    detection: 0.44
+    false_alarms: 0.1154
+    effects:
+      calendar.write:
+        detection: 0.2857
+        false_alarms: 0.0494
+      email.send:
+        detection: 0.3571
+        false_alarms: 0.0228
+      tasks.write:
+        detection: 0.8333
+        false_alarms: 0.012
+      tasks.delete:
+        detection: 1.0
+        false_alarms: 0.01

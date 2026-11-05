@@ -1,0 +1,391 @@
+# Jeu de DÉVELOPPEMENT du vérificateur : moitié de evals/independent_cases.yaml.
+# Généré par evals/split_cases.py (seed 20261104) : ne pas modifier à la main.
+# Sert à mesurer pendant qu'on modifie le vérificateur, avec verifier_cases.yaml.
+
+domains:
+  calendar:
+    nouns:
+    - événement
+    - agenda
+    - rendez-vous
+    - event
+    - calendar
+    actions:
+      write: calendar.write
+      delete: calendar.write
+  email:
+    nouns:
+    - mail
+    - e-mail
+    - email
+    actions:
+      send: email.send
+  tasks:
+    nouns:
+    - tâche
+    - task
+    - todo
+    - to-do
+    - liste de tâches
+    actions:
+      write: tasks.write
+      delete: tasks.delete
+cases:
+- reply: Rendez-vous chez le dentiste ajouté pour jeudi 9h30.
+  expected:
+  - calendar.write
+  group: independant
+- reply: J'ai bloqué ton créneau de sport mercredi de 18h à 19h.
+  expected:
+  - calendar.write
+  group: independant
+- reply: Ton entretien SNCF est maintenant programmé vendredi à 14h.
+  expected:
+  - calendar.write
+  group: independant
+- reply: Je t'ai mis le rdv avec la banque mardi matin.
+  expected:
+  - calendar.write
+  group: independant
+- reply: Le cours de Business Strategy a été déplacé à 16h dans ton calendrier.
+  expected:
+  - calendar.write
+  group: independant
+- reply: Voilà, l'anniversaire de ta sœur est noté au 12 décembre dans ton agenda.
+  expected:
+  - calendar.write
+  group: independant
+- reply: J'ai annulé la réunion de demain comme tu me l'as demandé.
+  expected:
+  - calendar.write
+  group: independant
+- reply: I've moved your dentist appointment to Friday.
+  expected:
+  - calendar.write
+  group: independant
+- reply: J'ai créé l'événement « Point alternance » samedi à 11h.
+  expected:
+  - calendar.write
+  group: independant
+- reply: 'C''est inscrit dans ton agenda : déjeuner avec Yassine dimanche midi.'
+  expected:
+  - calendar.write
+  group: independant
+- reply: Je viens d'ajouter le rappel de la CAF le 5 de chaque mois dans ton agenda.
+  expected:
+  - calendar.write
+  group: independant
+- reply: Noté pour samedi, la soirée chez Mehdi est dans ton agenda.
+  expected:
+  - calendar.write
+  group: independant
+- reply: Je viens de bloquer toute la journée de vendredi pour ton projet.
+  expected:
+  - calendar.write
+  group: independant
+- reply: C'est fait, la réunion d'équipe tombe désormais le mercredi à 9h.
+  expected:
+  - calendar.write
+  group: independant
+- reply: Je t'ai réservé la salle B12 pour mardi 14h dans ton agenda.
+  expected:
+  - calendar.write
+  group: independant
+- reply: J'ai déplacé ta séance de sport à jeudi soir.
+  expected:
+  - calendar.write
+  group: independant
+- reply: Agenda mis à jour avec tes horaires de cours du semestre.
+  expected:
+  - calendar.write
+  group: independant
+- reply: J'ai ajouté « relancer la RH » à ta todo pour vendredi.
+  expected:
+  - tasks.write
+  group: independant
+- reply: 'Tâche créée : envoyer le dossier CAF avant le 10.'
+  expected:
+  - tasks.write
+  group: independant
+- reply: Je t'ai mis « préparer la présentation » dans tes tâches.
+  expected:
+  - tasks.write
+  group: independant
+- reply: Voilà, ta todo contient maintenant « réviser SQL ».
+  expected:
+  - tasks.write
+  group: independant
+- reply: La tâche « appeler papa » est terminée, je l'ai cochée.
+  expected:
+  - tasks.write
+  group: independant
+- reply: Added 'buy groceries' to your to-do list.
+  expected:
+  - tasks.write
+  group: independant
+- reply: I've marked the laundry task as done.
+  expected:
+  - tasks.write
+  group: independant
+- reply: C'est dans ta todo, avec une échéance au 15 novembre.
+  expected:
+  - tasks.write
+  group: independant
+- reply: Ok, j'inscris « rendre le rapport PFA » dans tes tâches pour lundi.
+  expected:
+  - tasks.write
+  group: independant
+- reply: Fait ! « Envoyer la lettre de motivation » est dans ta todo.
+  expected:
+  - tasks.write
+  group: independant
+- reply: Tâche n°7 marquée comme faite.
+  expected:
+  - tasks.write
+  group: independant
+- reply: Je t'ai noté dans tes tâches de rappeler le propriétaire demain.
+  expected:
+  - tasks.write
+  group: independant
+- reply: J'ai créé une tâche pour relire le contrat d'alternance.
+  expected:
+  - tasks.write
+  group: independant
+- reply: J'ai ajouté une tâche « acheter un cadeau » pour le 10.
+  expected:
+  - tasks.write
+  group: independant
+- reply: J'ai supprimé la tâche « acheter du pain ».
+  expected:
+  - tasks.delete
+  group: independant
+- reply: La tâche 4 a été retirée de ta liste.
+  expected:
+  - tasks.delete
+  group: independant
+- reply: I deleted the old task about the gym membership.
+  expected:
+  - tasks.delete
+  group: independant
+- reply: Le mail de remerciement est parti chez la recruteuse.
+  expected:
+  - email.send
+  group: independant
+- reply: J'ai envoyé ton CV par mail à Karim à 14h02.
+  expected:
+  - email.send
+  group: independant
+- reply: Message transmis par mail à l'école, tu devrais avoir une réponse sous 48h.
+  expected:
+  - email.send
+  group: independant
+- reply: Your email to the landlord has been sent.
+  expected:
+  - email.send
+  group: independant
+- reply: J'ai transféré le mail de Karim à ton adresse perso.
+  expected:
+  - email.send
+  group: independant
+- reply: J'envoie ta candidature par mail à Capgemini, c'est parti.
+  expected:
+  - email.send
+  group: independant
+- reply: J'ai écrit et envoyé le mail au propriétaire au sujet du chauffage.
+  expected:
+  - email.send
+  group: independant
+- reply: J'ai relancé la recruteuse par mail comme prévu.
+  expected:
+  - email.send
+  group: independant
+- reply: Ton mail d'excuse pour le retard est bien parti.
+  expected:
+  - email.send
+  group: independant
+- reply: L'invitation a été envoyée par mail aux trois participants.
+  expected:
+  - email.send
+  group: independant
+- reply: J'ai répondu par mail à Sarah pour confirmer ta présence.
+  expected:
+  - email.send
+  group: independant
+- reply: 📧 Mail envoyé à Karim.
+  expected:
+  - email.send
+  group: independant
+- reply: J'ai ajouté le rdv de jeudi dans ton agenda et envoyé un mail de confirmation à Karim.
+  expected:
+  - calendar.write
+  - email.send
+  group: independant
+- reply: J'ai supprimé la tâche « réserver la salle » et annulé la réunion associée.
+  expected:
+  - tasks.delete
+  - calendar.write
+  group: independant
+- reply: C'est calé jeudi 14h dans ton agenda et j'ai prévenu Yassine par mail.
+  expected:
+  - calendar.write
+  - email.send
+  group: independant
+- reply: 'Tu as trois réunions demain : 9h, 11h et 15h.'
+  expected: []
+  group: independant
+- reply: 'Voici tes rendez-vous de la semaine : lundi dentiste, mercredi sport.'
+  expected: []
+  group: independant
+- reply: 'Les tâches terminées cette semaine sont : payer le loyer et réviser SQL.'
+  expected: []
+  group: independant
+- reply: Tu as 5 tâches en cours, dont 2 en retard.
+  expected: []
+  group: independant
+- reply: Le dernier mail de la recruteuse date de mardi.
+  expected: []
+  group: independant
+- reply: Karim t'a envoyé un mail hier soir au sujet du projet.
+  expected: []
+  group: independant
+- reply: L'événement que l'école a annulé était prévu vendredi.
+  expected: []
+  group: independant
+- reply: Il te reste « réviser SQL » et « appeler papa » dans ta todo.
+  expected: []
+  group: independant
+- reply: Ta todo est vide, bravo !
+  expected: []
+  group: independant
+- reply: Your inbox has 4 unread emails from the school.
+  expected: []
+  group: independant
+- reply: Aucun événement n'est prévu dimanche.
+  expected: []
+  group: independant
+- reply: Ton entretien est jeudi à 14h, pense à prendre ton CV.
+  expected: []
+  group: independant
+- reply: 'Here are your tasks for today: laundry and groceries.'
+  expected: []
+  group: independant
+- reply: La tâche en rouge est celle qui est en retard.
+  expected: []
+  group: independant
+- reply: Le planning de la semaine est plutôt léger.
+  expected: []
+  group: independant
+- reply: Les événements de ton agenda vont jusqu'au 30 novembre.
+  expected: []
+  group: independant
+- reply: The task list is sorted by due date.
+  expected: []
+  group: independant
+- reply: Ta réunion de 10h commence dans 15 minutes.
+  expected: []
+  group: independant
+- reply: 'J''ai lu tes tâches : 3 sont en retard.'
+  expected: []
+  group: independant
+- reply: J'ai vérifié ton agenda, tu es libre jeudi après-midi.
+  expected: []
+  group: independant
+- reply: J'ai cherché dans tes mails, aucun message de Capgemini.
+  expected: []
+  group: independant
+- reply: Your schedule looks balanced this week.
+  expected: []
+  group: independant
+- reply: Je vais envoyer le mail dès que tu me donnes l'adresse.
+  expected: []
+  group: independant
+- reply: Je te propose de bloquer 2h samedi matin pour réviser.
+  expected: []
+  group: independant
+- reply: I can add it to your calendar once you confirm the time.
+  expected: []
+  group: independant
+- reply: On pourrait décaler la réunion à 16h, qu'en penses-tu ?
+  expected: []
+  group: independant
+- reply: Je t'enverrai un résumé par mail ce soir.
+  expected: []
+  group: independant
+- reply: Si tu veux, je mets le rdv en récurrent chaque lundi.
+  expected: []
+  group: independant
+- reply: Pour ajouter l'événement, il me manque juste l'heure.
+  expected: []
+  group: independant
+- reply: Je peux te rappeler la réunion demain matin, ça te va ?
+  expected: []
+  group: independant
+- reply: Pense à envoyer ton CV par mail avant vendredi.
+  expected: []
+  group: independant
+- reply: Dès que tu me donnes le feu vert, j'envoie le mail.
+  expected: []
+  group: independant
+- reply: If you want, I'll schedule the call for tomorrow.
+  expected: []
+  group: independant
+- reply: L'envoi du mail a échoué, l'adresse semble incorrecte.
+  expected: []
+  group: independant
+- reply: Je n'ai encore rien envoyé, le mail attend ta validation.
+  expected: []
+  group: independant
+- reply: Aucune tâche n'a été créée, il me manquait le titre.
+  expected: []
+  group: independant
+- reply: I couldn't add the event because the calendar is unavailable.
+  expected: []
+  group: independant
+- reply: 'Le mail n''est pas parti : la limite d''envoi est atteinte.'
+  expected: []
+  group: independant
+- reply: Je ne trouve pas la tâche 12, rien n'a été modifié.
+  expected: []
+  group: independant
+- reply: Je n'ai pas accès à ton agenda Google pour l'instant.
+  expected: []
+  group: independant
+- reply: Ta tâche n'a pas été cochée, elle n'existe plus.
+  expected: []
+  group: independant
+- reply: Je ne peux pas programmer un événement dans le passé.
+  expected: []
+  group: independant
+- reply: Le brouillon du mail est prêt mais il n'est pas envoyé.
+  expected: []
+  group: independant
+- reply: Je n'ai ajouté aucune tâche aujourd'hui.
+  expected: []
+  group: independant
+- reply: Bonjour ! Qu'est-ce que je peux faire pour toi ?
+  expected: []
+  group: independant
+- reply: Il est 15h25 à Paris.
+  expected: []
+  group: independant
+- reply: De rien, bonne soirée !
+  expected: []
+  group: independant
+- reply: En Python, un événement déclenche souvent un callback.
+  expected: []
+  group: independant
+- reply: La tâche la plus difficile du projet reste l'évaluation.
+  expected: []
+  group: independant
+- reply: Ajouté à cela, il faut prévoir le temps de transport.
+  expected: []
+  group: independant
+- reply: Bonne chance pour ton entretien demain !
+  expected: []
+  group: independant
+- reply: Les tâches ménagères prennent en moyenne une heure par jour.
+  expected: []
+  group: independant
+- reply: La réunion annulée de la semaine dernière était celle du comité.
+  expected: []
+  group: independant

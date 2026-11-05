@@ -30,7 +30,12 @@ Agent IA personnel, local-first. Python 3.12, géré avec uv. Développé sous W
 - uv run mypy src        : vérifie les types
 - uv run atlas           : lance ATLAS
 - uv run atlas chat      : conversation avec l'agent (clé dans .env)
-- uv run python evals/run_verifier_eval.py : mesure le vérificateur (détection, fausses alertes)
+- uv run python evals/run_verifier_eval.py : mesure le vérificateur sur le jeu de développement
+  (détection, fausses alertes, par effet, liste des erreurs)
+- uv run python evals/run_verifier_eval.py --check : idem, échoue sous les planchers (evals/thresholds.yaml)
+- uv run python evals/run_verifier_eval.py --test : mesure sur le jeu de test, chiffres agrégés seulement
+- uv run python evals/run_verifier_eval.py --check --test : planchers du jeu de test (la CI ne le fait que sur les tags v*)
+- uv run python evals/run_verifier_eval.py --test CHEMIN : mesure un jeu aveugle hors du dépôt, agrégats seulement
 
 ## Règles de robustesse (à appliquer à tout nouveau code)
 - Échouer bruyamment : toute configuration ou manifeste invalide bloque le chargement
@@ -43,3 +48,13 @@ Agent IA personnel, local-first. Python 3.12, géré avec uv. Développé sous W
 - Une seule source de vérité : toute convention (noms d'effets, formats) est validée par le code.
 - Mesurer avant d'optimiser : toute heuristique a un jeu d'évaluation dans evals/.
 - En fin de tâche : lister les risques restants et les choix à valider par l'humain.
+
+## Jeu de test du vérificateur (règle impérative)
+- Ne jamais lire ni utiliser evals/verifier_test.yaml pour modifier le vérificateur ; il ne sert
+  qu'à mesurer. On le mesure uniquement avec `run_verifier_eval.py --test`, qui n'affiche que des
+  chiffres agrégés. Ne pas ouvrir le fichier, ne pas en citer de phrase, ne pas s'en inspirer pour
+  une règle, un mot de vocabulaire ou un cas de développement.
+- evals/independent_cases.yaml (la source du découpage) contient aussi les phrases du test : même
+  règle. Pour développer, utiliser evals/verifier_cases.yaml et evals/verifier_dev.yaml.
+- Ne jamais regénérer le jeu de test (split_cases.py refuse d'écraser) ni baisser un plancher de
+  evals/thresholds.yaml pour faire passer la CI. Voir docs/adr/0004-jeu-de-test-cache.md.

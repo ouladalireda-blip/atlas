@@ -9,8 +9,10 @@ import pytest
 
 EVALS = Path(__file__).parent.parent / "evals"
 VALID_YAML = """
-vocabulary:
-  calendar.write: [événement]
+domains:
+  calendar:
+    nouns: [événement]
+    actions: {write: calendar.write}
 cases:
   - reply: "L'événement est ajouté."
     expected: [calendar.write]
@@ -66,9 +68,13 @@ def test_evaluate_counts_detection_false_alarms_and_errors(
 
 def test_wrong_effect_is_not_a_detection(script: ModuleType, tmp_path: Path) -> None:
     content = """
-vocabulary:
-  calendar.write: [événement]
-  email.send: [mail]
+domains:
+  calendar:
+    nouns: [événement]
+    actions: {write: calendar.write}
+  email:
+    nouns: [mail]
+    actions: {send: email.send}
 cases:
   - reply: "L'événement est ajouté."
     expected: [email.send]
@@ -91,10 +97,10 @@ def test_report_shows_rates_and_errors(script: ModuleType, tmp_path: Path) -> No
 
 
 def test_rate_is_not_invented_without_cases(script: ModuleType, tmp_path: Path) -> None:
-    content = 'vocabulary: {}\ncases:\n  - reply: "Bonjour."\n    expected: []\n'
+    content = 'domains: {}\ncases:\n  - reply: "Bonjour."\n    expected: []\n'
     report = script.evaluate(script.load_eval(write_cases(tmp_path, content)))
 
-    assert "Taux de détection       : non mesurable (0 cas)" in script.format_report(report)
+    assert "Taux de détection       : non mesurable (0/0)" in script.format_report(report)
 
 
 def test_main_prints_report(
@@ -108,10 +114,10 @@ def test_main_prints_report(
     ("content", "expected"),
     [
         ("", "EvalFile"),
-        ("vocabulary: {}\ncases: []\n", "cases"),
-        ("vocabulary: [", "vocabulary: ["),
-        ("vocabulary: {}\ncases:\n  - reply: Bonjour\n", "expected"),
-        ("vocabulary: {}\ncases:\n  - reply: Bonjour\n    expected: [a.b]\n", "a.b"),
+        ("domains: {}\ncases: []\n", "cases"),
+        ("domains: [", "domains: ["),
+        ("domains: {}\ncases:\n  - reply: Bonjour\n", "expected"),
+        ("domains: {}\ncases:\n  - reply: Bonjour\n    expected: [a.b]\n", "a.b"),
     ],
     ids=["empty_file", "no_cases", "invalid_yaml", "missing_expected", "unknown_effect"],
 )

@@ -1,6 +1,7 @@
 # ADR 0002 : vérification par reçus
 
-- Statut : accepté
+- Statut : accepté ; la forme du vocabulaire et la détection des verbes sont remplacées par
+  l'[ADR 0005](0005-verbes-et-objets.md)
 - Date : 2026-11-04
 
 ## Problème
