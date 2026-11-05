@@ -103,7 +103,7 @@ _WRITE = _build(
     fr_regular=(
         "ajout cré programm planifi réserv bloqu cal not enregistr modifi déplac décal report "
         "ajust fix confirm valid marqu coch termin finalis actualis remplac renomm corrig "
-        "synchronis sauvegard archiv rédig"
+        "synchronis sauvegard archiv rédig ray"
     ),
     fr_accent="complét",  # présent « complète » : donné à part
     fr_irregular=("mis/mise/mises inscrit/inscrite/inscrits/inscrites écrit/écrite/écrits/écrites"),
@@ -122,7 +122,7 @@ _WRITE = _build(
 )
 _DELETE = _build(
     "delete",
-    fr_regular="supprim effac retir enlev annul ray vid décoch",
+    fr_regular="supprim effac retir enlev annul vid décoch",
     fr_irregular="détruit/détruite/détruits/détruites",
     fr_present="détruis enlève",
     en=(

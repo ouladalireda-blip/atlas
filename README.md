@@ -168,6 +168,8 @@ uv run mypy src
   `tasks.write`). Les outils n'ont pas de délai maximal.
 - **L'approbation vaut pour la session en cours** : un reçu `pending_approval` laissé sans réponse n'est
   pas repris plus tard.
+- **Le repli sans objet** (« C'est envoyé ! ») détecte plus, mais signale aussi des phrases hors
+  sujet qui contiennent un verbe d'action (« j'ajoute du sel »).
 - **Le lexique de verbes est une liste fermée** (classes write, delete, send ; ADR 0005) : un verbe
   absent n'est pas détecté. Depuis la v0.2, un verbe ne se confond plus entre compétences : il est lu
   avec le domaine du nom le plus proche.

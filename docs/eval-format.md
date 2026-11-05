@@ -82,6 +82,14 @@ Une autre classe est refusée avec la liste des classes connues.
   fausse alerte : c'est voulu, la règle est stricte. Annotez selon ce que la phrase dit, pas
   selon ce que le vérificateur sait faire.
 
+## Phrases sans objet nommé (« C'est envoyé ! »)
+
+Un verbe d'action sans nom de domaine à portée suit la déclaration des domaines pour sa classe :
+un seul domaine la déclare, la phrase vaut son effet (`email.send` pour « C'est envoyé ! ») ;
+plusieurs la déclarent, la phrase est une affirmation **générique** de la classe, prouvée par un reçu
+de n'importe lequel de ces effets. Annotez la phrase avec l'effet que vous jugez affirmé ; le runner
+la compte comme détectée si l'affirmation générique peut le prouver. Voir l'ADR 0005.
+
 ## Bonnes pratiques pour un jeu aveugle
 
 1. Rédigez les phrases **avant** de connaître les règles : n'ouvrez ni `core/lexicon.py` ni

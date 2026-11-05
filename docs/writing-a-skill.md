@@ -43,7 +43,9 @@ claims:
 - Le vérificateur lit l'effet d'une phrase ainsi : classe du verbe + domaine du nom le plus proche.
   « La note est supprimée » donne la classe `delete` ; si `actions` n'a pas de `delete`, l'affirmation
   est signalée comme `notes.delete`, que rien ne peut prouver, et jamais attribuée à une autre
-  compétence. Il n'y a donc aucun verbe à lister dans le manifeste. Si un verbe manque, ajoutez-le
+  compétence. Sans nom à portée (« C'est envoyé ! »), le verbe vaut l'effet de la seule compétence qui déclare
+  sa classe, ou une affirmation générique prouvée par un reçu de n'importe laquelle quand plusieurs la
+  déclarent. Il n'y a donc aucun verbe à lister dans le manifeste. Si un verbe manque, ajoutez-le
   une fois à `core/lexicon.py` : toutes les compétences en profitent.
 
 ## 2. Écrire la classe dans `skill.py`

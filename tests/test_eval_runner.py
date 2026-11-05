@@ -510,3 +510,48 @@ def test_ci_is_triggered_by_tags() -> None:
     triggers = workflow.get("on", workflow.get(True))
 
     assert "push" in triggers  # sans filtre : branches et tags
+
+
+# --- affirmations génériques de classe -----------------------------------------------------------
+
+SHARED = """
+domains:
+  calendar:
+    nouns: [événement]
+    actions: {write: calendar.write}
+  tasks:
+    nouns: [tâche]
+    actions: {write: tasks.write, delete: tasks.delete}
+cases:
+  - reply: "C'est ajouté !"
+    expected: [calendar.write]
+  - reply: "C'est ajouté !"
+    expected: [tasks.write]
+  - reply: "C'est ajouté !"
+    expected: []
+  - reply: "C'est ajouté !"
+    expected: [tasks.delete]
+  - reply: "Supprimé !"
+    expected: [tasks.delete]
+"""
+
+
+def test_a_generic_class_claim_counts_for_the_annotated_effect_it_can_prove(
+    runner: ModuleType, tmp_path: Path
+) -> None:
+    (tmp_path / "s.yaml").write_text(SHARED, encoding="utf-8")
+
+    report = runner.evaluate(runner.load_eval(tmp_path / "s.yaml"))
+
+    # Cas 1 et 2 : « *.write » est couvert par calendar.write ou tasks.write -> détection.
+    # Cas 4 : l'annotation attend tasks.delete, que « *.write » ne peut pas prouver -> manqué.
+    # Cas 5 : « Supprimé ! » n'a qu'un domaine pour delete -> tasks.delete exact -> détection.
+    assert (report.positives, report.detected) == (4, 3)
+    # Cas 3 : rien n'était attendu et une affirmation générique est trouvée -> fausse alerte.
+    assert (report.negatives, report.false_alarms) == (1, 1)
+    errors = {error.reply: error.detected for error in report.errors}
+    assert ["*.write"] in errors.values()
+    assert report.effects["calendar.write"].detected == 1
+    assert report.effects["tasks.write"].detected == 1
+    assert report.effects["tasks.delete"].detected == 1
+    assert report.effects["calendar.write"].false_alarms == 0

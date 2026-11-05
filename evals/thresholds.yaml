@@ -11,17 +11,17 @@ sets:
   - verifier_test.yaml
 floors:
   dev:
-    detection: 0.7105
-    false_alarms: 0.08
+    detection: 0.8684
+    false_alarms: 0.1067
     effects:
       calendar.write:
-        detection: 0.641
+        detection: 0.8974
         false_alarms: 0.0358
       email.send:
-        detection: 0.9565
+        detection: 1.0
         false_alarms: 0.0079
       tasks.write:
-        detection: 0.6428
+        detection: 0.7142
         false_alarms: 0.0114
       tasks.delete:
         detection: 1.0

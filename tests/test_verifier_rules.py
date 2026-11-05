@@ -6,7 +6,7 @@ Les phrases diffèrent de celles de evals/verifier_cases.yaml, qui servent à me
 import pytest
 
 from atlas.core import verifier
-from atlas.core.lexicon import Domain
+from atlas.core.lexicon import PARTICIPLE_CLASS, PRESENT_FR_CLASS, Domain
 from atlas.core.receipts import Receipt, ReceiptStatus
 from atlas.core.verifier import Claim, correction_message, detect_claims, verify
 
@@ -67,7 +67,6 @@ def test_first_person_present_write_verb_is_a_claim(reply: str, expected: list[s
         "I can add the event.",
         "Ajoute l'événement.",
         "Tu ajoutes l'événement.",
-        "J'ajoute un peu de sel dans la sauce de ma recette préférée.",
     ],
 )
 def test_present_tense_that_is_not_a_claim(reply: str) -> None:
@@ -235,13 +234,15 @@ def test_a_tie_goes_to_the_noun_after_the_verb_then_to_the_first_domain() -> Non
     assert task_effects("objet ajouté", domains) == ["second.write"]  # ordre du dictionnaire
 
 
-def test_a_verb_with_no_noun_nearby_claims_nothing() -> None:
-    assert task_effects("Tout est validé.", BOTH) == []
+def test_a_noun_beyond_six_words_does_not_count() -> None:
+    far = "Ajouté : un, deux, trois, quatre, cinq, six, sept, la tâche."
+
+    # Pas de nom à portée : le repli de classe s'applique (classe write déclarée par tasks seul).
+    assert task_effects(far, TASKS) == ["tasks.write"]
+    # La classe delete n'est déclarée par personne dans DOMAINS : rien à affirmer.
     assert (
-        task_effects("J'ai ajouté le mot de passe qui était demandé il y a longtemps.", TASKS) == []
+        task_effects("Supprimé : un, deux, trois, quatre, cinq, six, sept, le mail.", DOMAINS) == []
     )
-    # Un nom trop loin (plus de 6 mots) ne compte pas.
-    assert task_effects("Ajouté : un, deux, trois, quatre, cinq, six, sept, la tâche.", TASKS) == []
 
 
 def test_both_actions_in_one_sentence_need_both_receipts() -> None:
@@ -272,3 +273,117 @@ def test_a_verb_added_to_the_lexicon_serves_every_domain(
 
     assert task_effects("La tâche est zorblée.", BOTH) == ["tasks.write"]
     assert task_effects("L'événement est zorblé.", BOTH) == ["calendar.write"]
+
+
+# --- repli : un verbe d'action sans nom de domaine à portée --------------------------------------
+
+
+def claim_list(reply: str, domains: dict[str, Domain] = BOTH) -> list[Claim]:
+    return detect_claims(reply, domains)
+
+
+def test_a_verb_alone_takes_the_effect_of_the_only_domain_that_declares_its_class() -> None:
+    # Seul le domaine email déclare la classe send.
+    assert effects("C'est envoyé !") == ["email.send"]
+    assert task_effects("C'est envoyé !", BOTH) == ["email.send"]
+    assert effects("Envoyé.") == ["email.send"]
+    assert effects("J'envoie.") == ["email.send"]
+    assert effects("I sent it.") == ["email.send"]
+    # Seul tasks déclare delete dans BOTH.
+    assert task_effects("Supprimé !", BOTH) == ["tasks.delete"]
+
+
+def test_a_class_declared_by_several_domains_gives_a_generic_claim_of_the_class() -> None:
+    (claim,) = claim_list("C'est ajouté !")
+
+    assert claim.effect == "*.write"
+    assert claim.declared and set(claim.any_of) == {"calendar.write", "tasks.write"}
+
+
+def test_a_generic_class_claim_is_proved_by_any_ok_receipt_of_that_class() -> None:
+    reply = "C'est ajouté !"
+
+    assert not verify(reply, [receipt("calendar.write")], BOTH).unsupported
+    assert not verify(reply, [receipt("tasks.write")], BOTH).unsupported
+    # Un reçu d'une autre classe, ou aucun reçu, ne la prouve pas.
+    assert verify(reply, [receipt("tasks.delete")], BOTH).unsupported
+    assert verify(reply, [receipt("email.send")], BOTH).unsupported
+    assert verify(reply, [], BOTH).unsupported
+
+
+def test_a_receipt_that_is_not_ok_does_not_prove_a_generic_claim() -> None:
+    failed = Receipt(
+        id=1, turn_id="t", tool="x", effect="tasks.write", args={}, status=ReceiptStatus.ERROR
+    )
+
+    assert verify("C'est ajouté !", [failed], BOTH).unsupported
+
+
+def test_the_correction_message_for_a_generic_claim_lists_the_acceptable_effects() -> None:
+    message = correction_message(verify("C'est ajouté !", [], BOTH))
+
+    assert message is not None
+    assert "sans objet précisé" in message
+    assert "calendar.write" in message and "tasks.write" in message
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "Ce n'est pas envoyé.",
+        "Je n'ai pas envoyé.",
+        "Rien n'a été envoyé.",
+        "Je n'ai jamais ajouté.",
+        "I did not send it.",
+        "I haven't sent it.",
+        "Je vais envoyer.",
+        "Ce sera envoyé demain.",
+        "Je peux l'envoyer.",
+        "Dès que tu valides, c'est envoyé.",
+        "Quand tu me le diras, je l'envoie.",
+        "Si tu veux, j'envoie.",
+        "Once approved, it is sent.",
+        "C'est envoyé ?",
+        "Est-ce envoyé ?",
+        "Veux-tu que ce soit envoyé ?",
+    ],
+)
+def test_a_lone_verb_with_a_blocking_marker_claims_nothing(reply: str) -> None:
+    assert effects(reply) == []
+    assert task_effects(reply, BOTH) == []
+
+
+def test_a_lone_verb_before_a_negation_is_still_a_claim() -> None:
+    # Le marqueur annule ce qui le suit, pas ce qui le précède.
+    assert effects("Envoyé sans problème.") == ["email.send"]
+
+
+def test_a_noun_in_range_keeps_priority_over_the_fallback() -> None:
+    # Le nom est là : pas de repli. calendar ne déclare pas delete, donc c'est calendar.delete,
+    # non déclaré, et surtout pas tasks.delete (la classe n'est déclarée que par tasks).
+    claims = claim_list("L'événement est supprimé.")
+
+    assert [(c.effect, c.declared) for c in claims] == [("calendar.delete", False)]
+    assert task_effects("La tâche est ajoutée.", BOTH) == ["tasks.write"]
+    assert task_effects("Le mail est envoyé.", BOTH) == ["email.send"]
+
+
+def test_a_class_nobody_declares_claims_nothing_even_without_a_noun() -> None:
+    only_write = {"calendar": DOMAINS["calendar"]}
+
+    assert task_effects("C'est envoyé !", only_write) == []
+    assert task_effects("Supprimé !", only_write) == []
+
+
+def test_raying_a_task_is_marking_it_done() -> None:
+    assert task_effects("J'ai rayé la tâche.") == ["tasks.write"]
+    assert task_effects("La tâche 3 est rayée.") == ["tasks.write"]
+    assert task_effects("Je raye la tâche 3.") == ["tasks.write"]
+    assert PARTICIPLE_CLASS["rayé"] == "write"
+    assert PRESENT_FR_CLASS["raye"] == "write"
+
+
+def test_an_unrelated_sentence_with_an_action_verb_is_a_known_false_alarm() -> None:
+    # Coût assumé du repli : sans objet de domaine à portée, tout verbe d'action de la classe
+    # déclarée par un domaine se lit comme une affirmation (ADR 0005).
+    assert effects("J'ajoute un peu de sel dans la sauce.") == ["calendar.write"]
