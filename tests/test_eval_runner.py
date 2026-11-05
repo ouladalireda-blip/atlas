@@ -8,6 +8,7 @@ import importlib.util
 import sys
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
 import yaml
@@ -207,7 +208,7 @@ def test_the_floor_check_on_the_test_set_never_prints_errors(
 ) -> None:
     (workspace / "thresholds.yaml").write_text(config_text(test_detection=1.0), encoding="utf-8")
 
-    code = run(runner, workspace, "--check", "--test")
+    code = run(runner, workspace, "--check", "--test", "--min-sample", "1")
 
     output = output_of(capsys)
     assert code == 1
@@ -222,15 +223,15 @@ def test_the_floor_check_on_the_test_set_never_prints_errors(
 def test_floors_pass_when_met_and_fail_when_crossed(
     runner: ModuleType, workspace: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert run(runner, workspace, "--check") == 0
+    assert run(runner, workspace, "--check", "--min-sample", "1") == 0
     assert "Planchers dev : respectés" in output_of(capsys)
 
     (workspace / "thresholds.yaml").write_text(config_text(dev=0.99), encoding="utf-8")
-    assert run(runner, workspace, "--check") == 1
+    assert run(runner, workspace, "--check", "--min-sample", "1") == 1
     assert "détection" in output_of(capsys)
 
     (workspace / "thresholds.yaml").write_text(config_text(alarms=0.0), encoding="utf-8")
-    assert run(runner, workspace, "--check") == 1
+    assert run(runner, workspace, "--check", "--min-sample", "1") == 1
     assert "plafond" in output_of(capsys)
 
 
@@ -239,8 +240,8 @@ def test_dev_and_test_have_separate_floors(runner: ModuleType, workspace: Path) 
         config_text(dev=0.0, test_detection=1.0), encoding="utf-8"
     )
 
-    assert run(runner, workspace, "--check") == 0
-    assert run(runner, workspace, "--check", "--test") == 1
+    assert run(runner, workspace, "--check", "--min-sample", "1") == 0
+    assert run(runner, workspace, "--check", "--test", "--min-sample", "1") == 1
 
 
 def test_per_effect_floor_is_enforced(runner: ModuleType, workspace: Path) -> None:
@@ -251,7 +252,7 @@ def test_per_effect_floor_is_enforced(runner: ModuleType, workspace: Path) -> No
     loaded = runner.load_config(path)
 
     problems = runner.check_floors(
-        runner.evaluate_set(loaded, "dev", workspace), loaded.floors["dev"]
+        runner.evaluate_set(loaded, "dev", workspace), loaded.floors["dev"], min_sample=1
     )
 
     # email.send : 2 fausses alertes sur 4 phrases, soit 50 %, au-dessus du plafond de 10 %.
@@ -555,3 +556,125 @@ def test_a_generic_class_claim_counts_for_the_annotated_effect_it_can_prove(
     assert report.effects["tasks.write"].detected == 1
     assert report.effects["tasks.delete"].detected == 1
     assert report.effects["calendar.write"].false_alarms == 0
+
+
+# --- effectif minimal des planchers -----------------------------------------------------------
+
+
+def report_with(
+    runner: ModuleType, positives: int, detected: int, negatives: int, alarms: int
+) -> Any:
+    """Rapport synthétique à un seul effet « x.write », pour tester les seuils d'effectif."""
+    stats = runner.EffectStats(positives, detected, negatives, alarms)
+    return runner.EvalReport(positives, detected, negatives, alarms, [], {"x.write": stats})
+
+
+def strict_floors(runner: ModuleType) -> Any:
+    floor = runner.Floor(detection=0.9, false_alarms=0.1)
+    return runner.SetFloors(detection=0.0, false_alarms=1.0, effects={"x.write": floor})
+
+
+def test_a_floor_applies_from_ten_positive_phrases(runner: ModuleType) -> None:
+    floors = strict_floors(runner)
+
+    at_ten = runner.check_floors(report_with(runner, 10, 5, 20, 0), floors)
+    at_nine = runner.check_floors(report_with(runner, 9, 4, 20, 0), floors)
+
+    assert len(at_ten) == 1 and at_ten[0].startswith("x.write : détection")
+    assert at_nine == []
+
+
+def test_a_ceiling_applies_from_ten_negative_phrases(runner: ModuleType) -> None:
+    floors = strict_floors(runner)
+
+    at_ten = runner.check_floors(report_with(runner, 20, 20, 10, 5), floors)
+    at_nine = runner.check_floors(report_with(runner, 20, 20, 9, 5), floors)
+
+    assert len(at_ten) == 1 and "plafond" in at_ten[0]
+    assert at_nine == []
+
+
+def test_each_side_of_a_category_is_judged_on_its_own_size(runner: ModuleType) -> None:
+    floors = strict_floors(runner)
+
+    # 3 positives (détection informative) mais 30 négatives (plafond appliqué).
+    problems = runner.check_floors(report_with(runner, 3, 0, 30, 15), floors)
+
+    assert len(problems) == 1 and "plafond" in problems[0]
+
+
+def test_the_threshold_is_adjustable(runner: ModuleType) -> None:
+    floors = strict_floors(runner)
+    report = report_with(runner, 4, 1, 4, 3)
+
+    assert runner.check_floors(report, floors) == []
+    assert len(runner.check_floors(report, floors, min_sample=4)) == 2
+    assert runner.check_floors(report, floors, min_sample=5) == []
+
+
+def test_small_categories_are_listed_as_informative_with_their_figure(runner: ModuleType) -> None:
+    floors = strict_floors(runner)
+
+    lines = runner.informative_floors(report_with(runner, 4, 1, 30, 0), floors)
+
+    # Le global (4 positives) et l'effet sont tous deux sous l'effectif minimal.
+    assert [line.split(" : ")[0] for line in lines] == [
+        "INFORMATIF - global",
+        "INFORMATIF - x.write",
+    ]
+    effect_line = lines[1]
+    assert effect_line.startswith("INFORMATIF - x.write : détection 25.0% (1/4)")
+    assert "non appliqué" in effect_line and "moins de 10 phrases positives" in effect_line
+    assert runner.informative_floors(report_with(runner, 12, 12, 30, 0), floors) == []
+
+
+def test_an_empty_category_is_informative_not_a_failure(runner: ModuleType) -> None:
+    floors = strict_floors(runner)
+    report = report_with(runner, 0, 0, 0, 0)
+
+    lines = runner.informative_floors(report, floors)
+
+    assert runner.check_floors(report, floors) == []
+    assert any("non mesurable (0/0)" in line for line in lines)
+
+
+def test_an_effect_missing_from_the_measure_fails_whatever_the_sample(
+    runner: ModuleType,
+) -> None:
+    floors = runner.SetFloors(
+        detection=0.0,
+        false_alarms=1.0,
+        effects={"ghost.write": runner.Floor(detection=0.0, false_alarms=1.0)},
+    )
+
+    problems = runner.check_floors(report_with(runner, 50, 50, 50, 0), floors, min_sample=1000)
+
+    assert problems == ["ghost.write : effet absent de la mesure"]
+
+
+def test_check_ignores_crossed_floors_on_small_sets_and_says_so(
+    runner: ModuleType, workspace: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (workspace / "thresholds.yaml").write_text(config_text(dev=0.99, alarms=0.0), encoding="utf-8")
+
+    code = run(runner, workspace, "--check")
+
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "PLANCHER FRANCHI" not in captured.out + captured.err
+    assert "Planchers dev : respectés" in captured.out
+
+
+def test_the_minimum_sample_must_be_a_positive_integer(runner: ModuleType, workspace: Path) -> None:
+    for value in ("0", "-3", "dix"):
+        with pytest.raises(SystemExit):
+            run(runner, workspace, "--check", "--min-sample", value)
+
+
+def test_write_floors_header_documents_the_minimum_sample(
+    runner: ModuleType, workspace: Path
+) -> None:
+    assert run(runner, workspace, "--write-floors") == 0
+
+    header = (workspace / "thresholds.yaml").read_text(encoding="utf-8")
+    assert "INFORMATIF" in header and "--min-sample" in header

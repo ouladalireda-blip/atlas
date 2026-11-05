@@ -2,9 +2,10 @@
 
 import pytest
 
+from atlas.core.claims.rules import detect_claims
 from atlas.core.lexicon import Domain
 from atlas.core.receipts import Receipt, ReceiptStatus
-from atlas.core.verifier import Claim, correction_message, detect_claims, verify
+from atlas.core.verifier import Claim, correction_message, verify
 
 DOMAINS = {
     "calendar": Domain(

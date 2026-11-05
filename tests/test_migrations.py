@@ -79,16 +79,16 @@ def test_connect_fails_clearly_when_the_parent_is_a_file(tmp_path: Path) -> None
 def test_fresh_database_gets_the_core_schema(db: sqlite3.Connection) -> None:
     applied = apply_migrations(db, [core_source()])
 
-    assert applied == ["core 0001_receipts_usage"]
-    assert {"receipts", "usage_log", "schema_migrations"} <= tables(db)
-    assert versions(db, "core") == [1]
+    assert applied == ["core 0001_receipts_usage", "core 0002_turn_log", "core 0003_turn_events"]
+    assert {"receipts", "usage_log", "turn_log", "turn_events", "schema_migrations"} <= tables(db)
+    assert versions(db, "core") == [1, 2, 3]
 
 
 def test_running_twice_applies_nothing_the_second_time(db: sqlite3.Connection) -> None:
     apply_migrations(db, [core_source()])
 
     assert apply_migrations(db, [core_source()]) == []
-    assert versions(db, "core") == [1]
+    assert versions(db, "core") == [1, 2, 3]
 
 
 def test_resume_applies_only_the_new_migrations(db: sqlite3.Connection, tmp_path: Path) -> None:
@@ -109,7 +109,11 @@ def test_each_source_has_its_own_numbering(db: sqlite3.Connection, tmp_path: Pat
 
     apply_migrations(db, [core_source(), first, second])
 
-    assert (versions(db, "core"), versions(db, "first"), versions(db, "second")) == ([1], [1], [1])
+    assert (versions(db, "core"), versions(db, "first"), versions(db, "second")) == (
+        [1, 2, 3],
+        [1],
+        [1],
+    )
 
 
 def test_an_empty_source_is_fine(db: sqlite3.Connection, tmp_path: Path) -> None:
@@ -302,4 +306,4 @@ def test_split_statements_handles_several_statements_on_one_line() -> None:
 
 def test_core_migrations_ship_with_the_package() -> None:
     assert CORE_MIGRATIONS_DIR.is_dir()
-    assert [m.version for m in discover(core_source())] == [1]
+    assert [m.version for m in discover(core_source())] == [1, 2, 3]

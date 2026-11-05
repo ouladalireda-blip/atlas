@@ -22,6 +22,9 @@ def is_ignored(path: str) -> bool:
         "ailleurs/atlas.db",
         "atlas.db-wal",
         "atlas.db-shm",
+        "mlruns/mlflow.db",
+        "mlruns/artifacts/1/rapport.txt",
+        "mlartifacts/1/rapport.txt",
     ],
 )
 def test_private_files_are_ignored(path: str) -> None:

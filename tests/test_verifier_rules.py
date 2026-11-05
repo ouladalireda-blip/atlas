@@ -5,10 +5,11 @@ Les phrases diffèrent de celles de evals/verifier_cases.yaml, qui servent à me
 
 import pytest
 
-from atlas.core import verifier
+from atlas.core.claims import rules
+from atlas.core.claims.rules import detect_claims
 from atlas.core.lexicon import PARTICIPLE_CLASS, PRESENT_FR_CLASS, Domain
 from atlas.core.receipts import Receipt, ReceiptStatus
-from atlas.core.verifier import Claim, correction_message, detect_claims, verify
+from atlas.core.verifier import Claim, correction_message, verify
 
 DOMAINS = {
     "calendar": Domain(
@@ -266,9 +267,9 @@ def test_a_verb_added_to_the_lexicon_serves_every_domain(
     assert task_effects("La tâche est zorblée.", BOTH) == []
     assert task_effects("L'événement est zorblé.", BOTH) == []
     monkeypatch.setattr(
-        verifier,
+        rules,
         "PARTICIPLE_CLASS",
-        {**verifier.PARTICIPLE_CLASS, "zorblé": "write", "zorblée": "write"},
+        {**rules.PARTICIPLE_CLASS, "zorblé": "write", "zorblée": "write"},
     )
 
     assert task_effects("La tâche est zorblée.", BOTH) == ["tasks.write"]

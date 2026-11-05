@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from atlas.core.agent import MAX_RESULT_CHARS, SYSTEM_PROMPT, Agent, TurnResult, Verdict
+from atlas.core.claims import Claim, Domains
 from atlas.core.receipts import InMemoryReceiptStore, ReceiptStatus
 from atlas.core.usage import UsageLog
 from atlas.llm.base import LLMResponse, LLMUnavailable, Usage
@@ -546,3 +547,28 @@ def test_unknown_address_form_is_refused() -> None:
 def test_system_prompt_asks_for_concise_answers_and_closed_topics() -> None:
     assert "concises" in SYSTEM_PROMPT
     assert "Ne reviens pas sur un sujet clos" in SYSTEM_PROMPT
+
+
+class SilentDetector:
+    """Détecteur qui ne voit jamais d'affirmation."""
+
+    name = "muet"
+
+    def __init__(self) -> None:
+        self.seen: list[str] = []
+
+    def detect(self, reply: str, domains: Domains) -> list[Claim]:
+        self.seen.append(reply)
+        return []
+
+
+def test_agent_verifies_with_the_detector_it_is_given() -> None:
+    """Le contrôle passe par le contrat : un autre détecteur change le verdict, rien d'autre."""
+    detector = SilentDetector()
+    agent, _, _, _ = make_agent([text(LIE)], detector=detector)
+
+    result = agent.run_turn("Ajoute le dentiste.")
+
+    assert detector.seen == [LIE]
+    assert result.verdict is Verdict.NO_CLAIMS
+    assert result.reply == LIE

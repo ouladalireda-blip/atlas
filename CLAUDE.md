@@ -8,6 +8,14 @@ Agent IA personnel, local-first. Python 3.12, géré avec uv. Développé sous W
 - Tout outil déclare son `effect` (None = lecture seule). Les effets listés dans
   `requires_approval` ne s'exécutent qu'après validation humaine.
 - Le vérificateur refuse toute affirmation d'action sans reçu d'outil réussi.
+- Le journal des reçus est la source de vérité : le modèle termine son tour par l'outil `respond`
+  (message + numéros de reçus), fourni par le cœur (src/atlas/core/respond.py), jamais par une
+  compétence. L'agent valide les numéros ; le détecteur de texte est un garde-fou secondaire.
+- src/atlas/core/claims : détecteurs d'affirmations derrière le contrat `ClaimDetector`, choisis
+  par ATLAS_CLAIM_DETECTOR (défaut `rules`). Panne ou dépassement de ATLAS_CLAIM_DETECTOR_TIMEOUT
+  (défaut 1 s) : repli sur les règles, avec un avertissement journalisé ; après
+  ATLAS_CLAIM_DETECTOR_MAX_TIMEOUTS dépassements (défaut 3), le détecteur est désactivé pour la
+  session (repli permanent).
 - src/atlas/llm : interface commune pour les modèles (OpenRouter, Ollama). Le modèle est interchangeable.
 
 ## Règles
@@ -30,12 +38,29 @@ Agent IA personnel, local-first. Python 3.12, géré avec uv. Développé sous W
 - uv run mypy src        : vérifie les types
 - uv run atlas           : lance ATLAS
 - uv run atlas chat      : conversation avec l'agent (clé dans .env)
+- uv run atlas stats     : taux de conformité (tours terminés par l'outil respond)
+- uv run atlas tour N    : raconte le tour n° N depuis la base (appels au modèle, outils et reçus, réponses
+  refusées et leur raison, verdict, tokens, coût) ; `atlas tour --dernier` pour le dernier
+- ATLAS_LOG_LEVEL=DEBUG : journaux sur stderr ET dans data/logs/atlas.log (rotation simple) ;
+  aucune clé ni valeur sensible du .env n'y figure (masquage, testé)
 - uv run python evals/run_verifier_eval.py : mesure le vérificateur sur le jeu de développement
   (détection, fausses alertes, par effet, liste des erreurs)
-- uv run python evals/run_verifier_eval.py --check : idem, échoue sous les planchers (evals/thresholds.yaml)
+- uv run python evals/run_verifier_eval.py --check : idem, échoue sous les planchers (evals/thresholds.yaml) ;
+  un plancher ne s'applique qu'à une catégorie d'au moins 10 phrases (--min-sample N), sinon « INFORMATIF »
 - uv run python evals/run_verifier_eval.py --test : mesure sur le jeu de test, chiffres agrégés seulement
 - uv run python evals/run_verifier_eval.py --check --test : planchers du jeu de test (la CI ne le fait que sur les tags v*)
 - uv run python evals/run_verifier_eval.py --test CHEMIN : mesure un jeu aveugle hors du dépôt, agrégats seulement
+- uv run python evals/compare_detectors.py : compare des détecteurs sur le développement (détection,
+  fausses alertes, par effet, effectifs, intervalles de Wilson 95 %, latence p50/p95) ;
+  options : --detectors rules,..., --warmup N (tours de chauffe), --repeats N (mesures par phrase),
+  --no-latency, --mlflow
+- uv run python evals/compare_detectors.py --test : idem sur le test interne, agrégats seulement ;
+  --test CHEMIN pour un jeu aveugle hors du dépôt
+- uv run python evals/check_leakage.py : doublons exacts et quasi-doublons entre développement et
+  test interne, en effectifs seulement ; --external CHEMIN ajoute un jeu hors du dépôt
+- uv sync --group eval : installe MLflow (groupe hors CI ; un `uv sync` simple le retire)
+- uv run mlflow ui --backend-store-uri sqlite:///mlruns/mlflow.db : consulte les runs MLflow
+  (données dans mlruns/, ignorées par git)
 
 ## Règles de robustesse (à appliquer à tout nouveau code)
 - Échouer bruyamment : toute configuration ou manifeste invalide bloque le chargement
@@ -50,11 +75,12 @@ Agent IA personnel, local-first. Python 3.12, géré avec uv. Développé sous W
 - En fin de tâche : lister les risques restants et les choix à valider par l'humain.
 
 ## Jeu de test du vérificateur (règle impérative)
-- Ne jamais lire ni utiliser evals/verifier_test.yaml pour modifier le vérificateur ; il ne sert
-  qu'à mesurer. On le mesure uniquement avec `run_verifier_eval.py --test`, qui n'affiche que des
-  chiffres agrégés. Ne pas ouvrir le fichier, ne pas en citer de phrase, ne pas s'en inspirer pour
-  une règle, un mot de vocabulaire ou un cas de développement.
-- evals/independent_cases.yaml (la source du découpage) contient aussi les phrases du test : même
-  règle. Pour développer, utiliser evals/verifier_cases.yaml et evals/verifier_dev.yaml.
+- evals/verifier_test.yaml et evals/independent_cases.yaml (la source du découpage, qui contient
+  aussi les phrases du test) ne peuvent être lus que par les scripts de mesure qui n'affichent que
+  des agrégats : `run_verifier_eval.py --test`, `compare_detectors.py --test` et
+  `check_leakage.py`. Jamais pour écrire, régler ou entraîner un détecteur.
+- Ne pas ouvrir ces fichiers, ne pas en citer de phrase, ne pas s'en inspirer pour une règle, un mot
+  de vocabulaire, un seuil ou un cas de développement. Pour développer, utiliser
+  evals/verifier_cases.yaml et evals/verifier_dev.yaml.
 - Ne jamais regénérer le jeu de test (split_cases.py refuse d'écraser) ni baisser un plancher de
   evals/thresholds.yaml pour faire passer la CI. Voir docs/adr/0004-jeu-de-test-cache.md.

@@ -7,8 +7,52 @@ et ce projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Modifié
+
+- Réponse structurée (ADR 0007) : le modèle termine son tour par l'outil `respond` (message et
+  numéros de reçus), fourni par le cœur ; l'agent valide les numéros contre le journal des reçus
+  (une correction, puis retrait avec avertissement) et le détecteur de texte devient un garde-fou
+  secondaire. Sans `respond`, le texte libre est contrôlé comme avant et le tour est marqué non
+  conforme.
+- `atlas chat` affiche un encart « Actions de ce tour » construit uniquement depuis les reçus,
+  séparé du message, avec les avertissements.
+- ADR de décision du comparatif de détecteurs (c7) : ADR 0008 (0006 et 0007 sont pris).
+- Planchers du test interne remesurés avec R (après l'ADR 0005) : détection 80,0 % (40/50), fausses
+  alertes 13,5 % (7/52). Voir l'ADR 0006.
+- `CLAUDE.md` : les fichiers de test ne sont lisibles que par les scripts de mesure qui n'affichent
+  que des agrégats (`run_verifier_eval --test`, `compare_detectors --test`, `check_leakage`) ; les
+  nouvelles commandes y figurent.
+- Les planchers du vérificateur ne s'appliquent qu'aux catégories d'au moins 10 phrases
+  (`run_verifier_eval.py --min-sample`) ; en dessous, la mesure est affichée « INFORMATIF ».
+- Conception § 6 : règle « aucun survivant » (R reste le défaut, chantier sur les fausses alertes).
+
+### Supprimé
+
+- Un fichier parasite `t` (une sortie de `git diff` enregistrée) à la racine.
+
 ### Ajouté
 
+- Journalisation : `ATLAS_LOG_LEVEL` agit enfin (il n'était lu nulle part). Fichier tournant
+  `data/logs/atlas.log` (`ATLAS_LOG_DIR`) et stderr ; avec DEBUG, tout va aux deux. Les clés et les
+  valeurs sensibles du `.env` sont masquées (`***`), ce qu'un test vérifie de bout en bout.
+- Commande `atlas tour N` (et `--dernier`) : raconte un tour depuis la base, avec la raison de
+  chaque réponse refusée. Trace dans la table `turn_events` (migration du cœur n° 3).
+- Commande `atlas stats` et table `turn_log` (migration du cœur n° 2) : taux de conformité des
+  tours terminés par `respond`, journalisé avec la consommation.
+- Sous-étape c2 du comparatif des détecteurs : `core/claims/` (contrat `ClaimDetector`, R =
+  les règles déplacées sans changement de comportement, repli sur R avec avertissement en cas de
+  panne, fabrique), réglage `ATLAS_CLAIM_DETECTOR` (défaut `rules`) et ADR 0006.
+- Disjoncteur : après 3 dépassements de délai (`ATLAS_CLAIM_DETECTOR_MAX_TIMEOUTS`), le détecteur
+  est désactivé pour la session, repli permanent sur R.
+- Délai maximal par appel de détecteur (`ATLAS_CLAIM_DETECTOR_TIMEOUT`, 1 s par défaut) : au-delà,
+  repli sur R avec un avertissement journalisé.
+- `.editorconfig` (LF, UTF-8, indentation 4 pour Python et 2 pour YAML et Markdown) et
+  `.vscode/settings.json` (`files.eol`).
+- `evals/compare_detectors.py` : mêmes jeux pour tous les détecteurs, effectifs, intervalles de
+  Wilson à 95 %, latence p50/p95, suivi MLflow facultatif (`uv sync --group eval`, données dans
+  `mlruns/`, ignorées par git). Il n'affiche jamais une phrase.
+- `evals/check_leakage.py` : doublons exacts et quasi-doublons entre développement, test interne
+  et un fichier externe, en effectifs seulement.
 - `docs/design/0001-comparatif-detecteurs.md` : conception du comparatif des détecteurs
   d'affirmations (règles, spaCy, embeddings, NLI, cascade), protocole, critère de décision et plan c2 à c7.
 - `core/lexicon.py` : classes de verbes write, delete et send, en français et en anglais, source
