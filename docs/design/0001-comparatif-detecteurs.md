@@ -373,11 +373,29 @@ après toutes. Avant c7, ouvrir le jeu aveugle pour le valider (format, taille),
 
 ## 9. Points à confirmer avant c2
 
+Tous les points sont tranchés au § 10, sauf le premier qui est reporté dans les PR concernées.
+
 1. **Licences et caractéristiques** marquées « à confirmer » dans le § 2, en particulier les modèles
    spaCy français (et leurs corpus), `multilingual-e5-small` (paramètres, préfixes) et `mDeBERTa`
-   (taille, jeux d'entraînement).
+   (taille, jeux d'entraînement). *Reporté : vérifié dans chaque PR c3 à c5 (§ 10, point 1).*
 2. **Définition de « chevauchent largement »** (§ 6) et seuil de 10 % (ponctuel ou borne haute).
-3. **Taille minimale du jeu aveugle** et identité de son rédacteur.
+   *Tranché (§ 10, point 2).*
+3. **Taille minimale du jeu aveugle** et identité de son rédacteur. *Tranché (§ 10, point 3).*
 4. **Comportement en cas d'échec d'un détecteur ML** : repli sur R ou refus de démarrer.
-5. **Exigence par effet** : critère ou simple analyse.
-6. **Machine de référence** pour la latence.
+   *Tranché (§ 10, point 4).*
+5. **Exigence par effet** : critère ou simple analyse. *Tranché (§ 10, point 5).*
+6. **Machine de référence** pour la latence. *Tranché (§ 10, point 6).*
+
+## 10. Décisions validées (2026-11-05)
+
+1. **Licences** : vérifiées dans chaque PR c3 à c5 sur les sources officielles, avant intégration.
+2. **« Chevauchent largement »** : le chevauchement des deux intervalles de Wilson dépasse la moitié
+   de la largeur du plus étroit des deux. **Seuil de 10 % de fausses alertes** : appliqué à
+   l'estimation ponctuelle ; la borne haute de l'intervalle est rapportée, sans servir de critère.
+3. **Jeu aveugle** : 200 phrases (91 positives, 109 négatives), générées par Gemini, annotées et
+   relues par Reda. 50 phrases ont été vues par le tech lead, aucune par Claude Code. La taille est
+   sous la cible de 100 positives ; c'est accepté et documenté.
+4. **Panne d'un détecteur ML** : repli sur R, avec un avertissement journalisé.
+5. **Détection par effet** : analyse uniquement, pas un critère de décision.
+6. **Machine de référence** (latence) : Intel Core i5-10210U à 1,60 GHz, 4 cœurs physiques
+   (8 logiques), 7,8 Go de RAM, Windows 10 Professionnel.
