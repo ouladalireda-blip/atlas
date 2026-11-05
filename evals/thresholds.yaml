@@ -1,6 +1,8 @@
 # Jeux d'évaluation du vérificateur et planchers de la CI (taux entre 0 et 1).
 # Les planchers sont les niveaux mesurés : detection = minimum, false_alarms = maximum.
 # Les modifier est une décision à justifier : jamais pour faire passer la CI.
+# Un plancher ne s'applique qu'à une catégorie d'au moins 10 phrases (--min-sample) ;
+# en dessous, la mesure est affichée « INFORMATIF » et ne fait pas échouer.
 # Régénérés par : uv run python evals/run_verifier_eval.py --write-floors
 
 sets:
@@ -27,18 +29,18 @@ floors:
         detection: 1.0
         false_alarms: 0.0
   test:
-    detection: 0.44
-    false_alarms: 0.1154
+    detection: 0.8
+    false_alarms: 0.1347
     effects:
       calendar.write:
-        detection: 0.2857
-        false_alarms: 0.0494
+        detection: 0.9047
+        false_alarms: 0.0247
       email.send:
-        detection: 0.3571
-        false_alarms: 0.0228
+        detection: 0.9285
+        false_alarms: 0.0341
       tasks.write:
-        detection: 0.8333
+        detection: 0.7777
         false_alarms: 0.012
       tasks.delete:
         detection: 1.0
-        false_alarms: 0.01
+        false_alarms: 0.0

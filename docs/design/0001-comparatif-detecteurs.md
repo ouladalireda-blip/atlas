@@ -286,10 +286,11 @@ Pour chaque candidat, sur chaque jeu, rapportées avec leurs effectifs :
 
 Machine de référence unique, décrite dans le rapport (processeur, cœurs, RAM, système), sans GPU,
 même nombre de threads pour tous. Réponses prises dans le jeu de développement (le jeu aveugle n'est
-chronométré que pendant sa propre mesure). Protocole : chargement du modèle exclu mais mesuré à part ;
-100 réponses d'échauffement ; au moins 500 mesures ; une réponse à la fois (cas d'usage de `atlas chat`) ;
-chronométrage de bout en bout du détecteur (pré-traitement, modèle, résolution d'effet). p50 et p95 sont
-rapportés avec le nombre de mesures. La latence est mesurée dans un processus propre, hors
+chronométré que pendant sa propre mesure). Protocole (décision de la mise en œuvre c2) : chargement du
+modèle exclu mais mesuré à part ; des tours de chauffe sur tout le jeu (réglables, 1 par défaut) ; chaque
+phrase mesurée N fois (réglable, 5 par défaut), p50 et p95 sur l'ensemble des mesures ; une réponse à la
+fois (cas d'usage de `atlas chat`) ; chronométrage de bout en bout du détecteur (pré-traitement, modèle,
+résolution d'effet). La sortie et MLflow consignent la machine, le nombre de répétitions et la chauffe. La latence est mesurée dans un processus propre, hors
 instrumentation MLflow.
 
 ### 5.2 Poids
@@ -318,6 +319,15 @@ Fixé avant toute mesure comparative. Il s'applique au **jeu aveugle**, mesuré 
 3. **Départage par simplicité.** Si les intervalles de Wilson à 95 % de la détection du premier et
    d'un autre survivant se **chevauchent largement**, on retient **le plus simple**. Ordre de
    simplicité, du plus simple au plus complexe : **R < S < E < N < C**.
+4. **Aucun survivant.** Si aucun candidat, R compris, ne passe l'éliminatoire du point 1, **R reste le
+   détecteur par défaut** et **un chantier dédié aux fausses alertes est ouvert** avant toute nouvelle
+   tentative de comparaison. Aucun seuil n'est modifié pour qu'un candidat survive.
+
+*Ajout du 2026-11-05, avant toute mesure aveugle.* Raison : la remesure du test interne avec R
+(dépassant 10 % de fausses alertes : 13,5 %, soit 7/52 ; ADR 0006) a montré que l'éliminatoire peut
+écarter R lui-même. Le cas « aucun survivant » n'était pas prévu ; cet ajout fixe la conduite à
+tenir avant de connaître le résultat aveugle, sans toucher aux seuils des points 1 à 3. Le test interne
+n'entre pas dans la décision : il a seulement révélé ce risque.
 
 Précisions à valider (propositions, non figées tant qu'elles ne sont pas acceptées) :
 
@@ -346,7 +356,7 @@ compte rendu des risques restants.
 | **c4** | E : embeddings + régression logistique | `embeddings.py`, entraînement sur le développement seul, validation croisée groupée, export éventuel ONNX | E mesuré hors pli ; classifieur figé et empreinte |
 | **c5** | N : NLI zéro-shot | `nli.py`, hypothèses par classe et par langue, seuils réglés sur le développement | N mesuré ; décision sur le modèle (mDeBERTa ou autre) |
 | **c6** | C : cascade | `cascade.py`, seuil d'incertitude réglé par validation croisée sur le développement | C mesuré |
-| **c7** | Mesure aveugle et ADR de décision | empreintes consignées, **une** mesure aveugle de tous les candidats, application du § 6, ADR 0006 | Décision ; détecteur par défaut mis à jour ou R conservé |
+| **c7** | Mesure aveugle et ADR de décision | empreintes consignées, **une** mesure aveugle de tous les candidats, application du § 6, ADR 0008 | Décision ; détecteur par défaut mis à jour ou R conservé |
 
 Dépendances : c2 avant tout ; c3, c4, c5 indépendantes entre elles ; c6 après c3 et (c4 ou c5) ; c7
 après toutes. Avant c7, ouvrir le jeu aveugle pour le valider (format, taille), sans le lire.
@@ -364,12 +374,12 @@ après toutes. Avant c7, ouvrir le jeu aveugle pour le valider (format, taille),
 | Comparaisons multiples (5 candidats) | Le « meilleur » peut l'être par hasard | Critère pré-enregistré, intervalles de Wilson, règle de simplicité |
 | Poids des dépendances (PyTorch) | Installation lourde, surtout sous Windows | Extra optionnel, ONNX à évaluer, poids mesuré et rapporté, CI sans extras |
 | Latence trop haute (NLI, cascade) | p95 > 300 ms : candidat éliminé | Mesurer tôt (c5) ; modèles petits en priorité ; la cascade ne paie que les cas incertains |
-| Licences (spaCy français et ses corpus, jeux NLI, bibliothèques) | Impossibilité d'embarquer ou de redistribuer | Confirmer avant c3 à c5 sur les sources officielles ; consigner dans l'ADR 0006 |
+| Licences (spaCy français et ses corpus, jeux NLI, bibliothèques) | Impossibilité d'embarquer ou de redistribuer | Confirmer avant c3 à c5 sur les sources officielles ; consigner dans l'ADR 0008 |
 | Modèles absents hors ligne | `atlas chat` inutilisable | Commande de téléchargement explicite, cache épinglé, refus clair au démarrage |
 | Dérive des versions (spaCy, modèles, bibliothèques) | Résultats non reproductibles | Versions et révisions épinglées dans `uv.lock` et dans les étiquettes MLflow |
 | Données personnelles | Une réponse de l'assistant contient des données de l'utilisateur | Les modèles tournent en local (cohérent avec « local-first ») ; aucun envoi réseau pendant la détection ; les phrases d'éval ne sont pas des données réelles |
 | Détection ML moins explicable | Plus difficile de comprendre une fausse alerte | Garder les scores, journaliser la classe et le score, conserver R comme référence et comme repli en cas d'échec du modèle |
-| Un détecteur ML qui échoue en production | Réponses non vérifiées | Repli explicite sur R avec message, ou refus (à décider en c2 : *sûr par défaut*) |
+| Un détecteur ML qui échoue ou tarde en production | Réponses non vérifiées | Repli sur R avec avertissement journalisé, y compris au-delà d'un délai maximal par appel (décision 4 du § 10 ; ADR 0006) |
 
 ## 9. Points à confirmer avant c2
 

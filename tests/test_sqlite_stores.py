@@ -123,7 +123,7 @@ def test_receipts_survive_reopening_the_database(tmp_path: Path) -> None:
 
     assert SqliteReceiptStore(second).for_turn("t1") == [stored]
     # La réouverture n'a rien rejoué.
-    assert second.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 1
+    assert second.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 3
 
 
 def test_corrupt_status_fails_loudly() -> None:

@@ -3,7 +3,7 @@
 import sqlite3
 from datetime import date
 
-from atlas.core.usage import UsageEntry
+from atlas.core.usage import TURN_OUTCOMES, TurnEntry, UsageEntry
 
 
 def _to_entry(row: sqlite3.Row) -> UsageEntry:
@@ -14,6 +14,17 @@ def _to_entry(row: sqlite3.Row) -> UsageEntry:
         tokens=row["tokens"],
         cost=row["cost"],
         estimated=bool(row["estimated"]),
+    )
+
+
+def _to_turn(row: sqlite3.Row) -> TurnEntry:
+    if row["outcome"] not in TURN_OUTCOMES:
+        raise ValueError(f"Issue de tour inconnue en base : {row['outcome']!r}")
+    return TurnEntry(
+        day=date.fromisoformat(row["day"]),
+        turn_id=row["turn_id"],
+        outcome=row["outcome"],
+        verdict=row["verdict"],
     )
 
 
@@ -56,3 +67,15 @@ class SqliteUsageStore:
         """Retourne tous les appels enregistrés."""
         rows = self._connection.execute("SELECT * FROM usage_log ORDER BY id").fetchall()
         return [_to_entry(row) for row in rows]
+
+    def add_turn(self, entry: TurnEntry) -> None:
+        """Enregistre l'issue d'un tour (une seule ligne par tour)."""
+        self._connection.execute(
+            "INSERT INTO turn_log (turn_id, day, outcome, verdict) VALUES (?, ?, ?, ?)",
+            (entry.turn_id, entry.day.isoformat(), entry.outcome, entry.verdict),
+        )
+
+    def turns(self) -> list[TurnEntry]:
+        """Retourne les issues de tous les tours enregistrés, dans l'ordre."""
+        rows = self._connection.execute("SELECT * FROM turn_log ORDER BY rowid").fetchall()
+        return [_to_turn(row) for row in rows]

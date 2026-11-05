@@ -1,13 +1,16 @@
 """Tests de la commande `atlas chat`, avec un modèle simulé."""
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 from rich.console import Console
 from typer.testing import CliRunner
 
 from atlas.core.agent import Agent, ApprovalHandler, TurnResult, Verdict
+from atlas.core.claims import ClaimDetector, DetectorUnavailable
 from atlas.core.receipts import InMemoryReceiptStore, Receipt, ReceiptStatus
+from atlas.core.trace import TraceStore
 from atlas.core.usage import UsageLog
 from atlas.interfaces import cli
 from atlas.llm.base import LLMClient
@@ -161,6 +164,8 @@ def test_agent_built_by_chat_uses_settings(monkeypatch: pytest.MonkeyPatch) -> N
             history_messages: int,
             address_form: str,
             approver: ApprovalHandler,
+            detector: ClaimDetector,
+            trace: TraceStore,
         ) -> None:
             captured.update(rounds=max_tool_rounds, history=history_messages, form=address_form)
             super().__init__(
@@ -172,6 +177,8 @@ def test_agent_built_by_chat_uses_settings(monkeypatch: pytest.MonkeyPatch) -> N
                 history_messages=history_messages,
                 address_form=address_form,
                 approver=approver,
+                detector=detector,
+                trace=trace,
             )
 
     use_llm(monkeypatch, ScriptedLLM([]))
@@ -225,3 +232,81 @@ def test_blank_line_also_without_receipts() -> None:
 
     assert lines[reply_at + 1] == ""
     assert any(line.startswith("Verdict") for line in lines[reply_at + 2 :])
+
+
+def test_unknown_claim_detector_refuses_to_start_with_the_valid_names(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    use_llm(monkeypatch, ScriptedLLM([]))
+    monkeypatch.setenv("ATLAS_CLAIM_DETECTOR", "magie")
+
+    result = runner.invoke(cli.app, ["chat"], input="exit\n")
+
+    assert result.exit_code == 1
+    assert "Configuration invalide" in result.output
+    assert "magie" in result.output
+    assert "rules" in result.output
+
+
+def test_unavailable_claim_detector_refuses_to_start(monkeypatch: pytest.MonkeyPatch) -> None:
+    def unavailable(name: str, **options: Any) -> ClaimDetector:
+        raise DetectorUnavailable("extra manquant : lancer « uv sync --extra nlp »")
+
+    use_llm(monkeypatch, ScriptedLLM([]))
+    monkeypatch.setattr(cli, "build_detector", unavailable)
+
+    result = runner.invoke(cli.app, ["chat"], input="exit\n")
+
+    assert result.exit_code == 1
+    assert "uv sync --extra nlp" in result.output
+
+
+def test_chat_gives_the_configured_detector_to_the_agent(monkeypatch: pytest.MonkeyPatch) -> None:
+    names: list[str] = []
+
+    class SpyAgent(Agent):
+        def __init__(self, *args: object, detector: ClaimDetector, **kwargs: object) -> None:
+            names.append(detector.name)
+            super().__init__(*args, detector=detector, **kwargs)  # type: ignore[arg-type]
+
+    use_llm(monkeypatch, ScriptedLLM([]))
+    monkeypatch.setattr(cli, "Agent", SpyAgent)
+
+    runner.invoke(cli.app, ["chat"], input="exit\n")
+
+    assert names == ["rules"]
+
+
+def test_a_turn_ended_by_respond_shows_the_message_then_the_receipts_panel_and_is_counted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    llm = ScriptedLLM(
+        [
+            tool_calls(("clock_now", {})),
+            tool_calls(("respond", {"message": "Il est l'heure du reçu.", "actions": [1]})),
+        ]
+    )
+    use_llm(monkeypatch, llm)
+
+    chat_result = runner.invoke(cli.app, ["chat"], input="Quelle heure ?\nexit\n")
+    stats_result = runner.invoke(cli.app, ["stats"])
+
+    output = chat_result.output
+    assert chat_result.exit_code == 0
+    assert output.index("Il est l'heure du reçu.") < output.index("Actions de ce tour")
+    assert "clock_now" in output and "n°1" in output
+    assert "⚠" not in output
+    assert stats_result.exit_code == 0
+    assert "100.0% (1/1)*" in stats_result.output
+
+
+def test_a_free_text_turn_is_flagged_and_counted_as_non_conforming(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    use_llm(monkeypatch, ScriptedLLM([text("Bonjour, en texte libre.")]))
+
+    chat_result = runner.invoke(cli.app, ["chat"], input="Salut\nexit\n")
+    stats_result = runner.invoke(cli.app, ["stats"])
+
+    assert "⚠ Le modèle n'a pas terminé son tour par l'outil respond" in chat_result.output
+    assert "0.0% (0/1)*" in stats_result.output

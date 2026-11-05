@@ -27,8 +27,8 @@ from typing import Self
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
+from atlas.core.claims import Claim, ClaimDetector, default_detector
 from atlas.core.lexicon import VERB_CLASSES, Domain
-from atlas.core.verifier import Claim, detect_claims
 
 EVALS = Path(__file__).parent
 DEFAULT_CASES = EVALS / "verifier_cases.yaml"
@@ -218,11 +218,15 @@ def _found_effects(claims: list[Claim], expected: set[str | None]) -> set[str | 
     return found
 
 
-def evaluate(data: EvalFile, group: str | None = None) -> EvalReport:
-    """Passe chaque phrase au vérificateur et compare les effets détectés aux effets attendus.
+def evaluate(
+    data: EvalFile, group: str | None = None, detector: ClaimDetector | None = None
+) -> EvalReport:
+    """Passe chaque phrase au détecteur et compare les effets détectés aux effets attendus.
 
-    Avec group, seules les phrases de ce groupe sont mesurées.
+    Avec group, seules les phrases de ce groupe sont mesurées. Sans detector, ce sont les règles
+    (R), la référence ; evals/compare_detectors.py passe les autres candidats par ce même chemin.
     """
+    detector = detector or default_detector()
     positives = detected = negatives = false_alarms = 0
     errors: list[EvalError] = []
     domains = data.to_domains()
@@ -231,7 +235,7 @@ def evaluate(data: EvalFile, group: str | None = None) -> EvalReport:
         if group is not None and case.group != group:
             continue
         expected = set(case.expected)
-        found = _found_effects(detect_claims(case.reply, domains), expected)
+        found = _found_effects(detector.detect(case.reply, domains), expected)
         if expected:
             positives += 1
             detected += found == expected
@@ -267,9 +271,11 @@ def combine(reports: list[EvalReport]) -> EvalReport:
     )
 
 
-def evaluate_set(config: EvalConfig, name: str, base: Path) -> EvalReport:
+def evaluate_set(
+    config: EvalConfig, name: str, base: Path, detector: ClaimDetector | None = None
+) -> EvalReport:
     """Mesure un jeu de la configuration (fichiers relatifs au dossier de la configuration)."""
-    return combine([evaluate(load_eval(base / file)) for file in config.sets[name]])
+    return combine([evaluate(load_eval(base / file), None, detector) for file in config.sets[name]])
 
 
 def _rate(count: int, total: int) -> str:
@@ -330,26 +336,81 @@ def _floor_violations(
     return problems
 
 
-def check_floors(report: EvalReport, floors: SetFloors) -> list[str]:
-    """Compare un rapport aux planchers ; retourne les dépassements, avec des chiffres seulement."""
-    problems = _floor_violations(
-        "global",
-        _ratio(report.detected, report.positives),
-        _ratio(report.false_alarms, report.negatives),
-        floors,
-    )
+def _floor_targets(
+    report: EvalReport, floors: SetFloors
+) -> list[tuple[str, int, int, int, int, Floor | None]]:
+    """Liste (étiquette, positives, détectées, négatives, fausses alertes, plancher).
+
+    Le plancher vaut None pour un effet absent de la mesure.
+    """
+    targets: list[tuple[str, int, int, int, int, Floor | None]] = [
+        (
+            "global",
+            report.positives,
+            report.detected,
+            report.negatives,
+            report.false_alarms,
+            floors,
+        )
+    ]
     for effect, floor in floors.effects.items():
         stats = report.effects.get(effect)
         if stats is None:
-            problems.append(f"{effect} : effet absent de la mesure")
+            targets.append((effect, 0, 0, 0, 0, None))
+        else:
+            targets.append(
+                (
+                    effect,
+                    stats.positives,
+                    stats.detected,
+                    stats.negatives,
+                    stats.false_alarms,
+                    floor,
+                )
+            )
+    return targets
+
+
+def check_floors(report: EvalReport, floors: SetFloors, min_sample: int = MIN_SAMPLE) -> list[str]:
+    """Compare un rapport aux planchers ; retourne les dépassements, avec des chiffres seulement.
+
+    Un plancher n'est appliqué que si sa catégorie compte au moins min_sample phrases : la
+    détection se juge sur les phrases positives, les fausses alertes sur les négatives. En dessous,
+    le chiffre est seulement informatif (voir informative_floors).
+    """
+    problems: list[str] = []
+    for label, positives, detected, negatives, alarms, floor in _floor_targets(report, floors):
+        if floor is None:
+            problems.append(f"{label} : effet absent de la mesure")
             continue
         problems += _floor_violations(
-            effect,
-            _ratio(stats.detected, stats.positives),
-            _ratio(stats.false_alarms, stats.negatives),
+            label,
+            _ratio(detected, positives) if positives >= min_sample else None,
+            _ratio(alarms, negatives) if negatives >= min_sample else None,
             floor,
         )
     return problems
+
+
+def informative_floors(
+    report: EvalReport, floors: SetFloors, min_sample: int = MIN_SAMPLE
+) -> list[str]:
+    """Liste les planchers non appliqués faute d'effectif, avec leur chiffre à titre informatif."""
+    lines: list[str] = []
+    for label, positives, detected, negatives, alarms, floor in _floor_targets(report, floors):
+        if floor is None:
+            continue
+        if positives < min_sample:
+            lines.append(
+                f"INFORMATIF - {label} : détection {_rate(detected, positives)}, plancher "
+                f"{floor.detection:.1%} non appliqué (moins de {min_sample} phrases positives)"
+            )
+        if negatives < min_sample:
+            lines.append(
+                f"INFORMATIF - {label} : fausses alertes {_rate(alarms, negatives)}, plafond "
+                f"{floor.false_alarms:.1%} non appliqué (moins de {min_sample} phrases négatives)"
+            )
+    return lines
 
 
 def current_floors(report: EvalReport) -> SetFloors:
@@ -387,6 +448,14 @@ def _describe(error: Exception, hidden: bool) -> str:
     return f"détail masqué ({type(error).__name__})" if hidden else str(error)
 
 
+def _positive_int(value: str) -> int:
+    """Argument entier supérieur ou égal à 1."""
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError("doit être un entier supérieur ou égal à 1")
+    return number
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="run_verifier_eval.py", description="Mesure le vérificateur."
@@ -399,6 +468,12 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--check", action="store_true", help="échoue sous les planchers")
     parser.add_argument("--write-floors", action="store_true", help="écrit les niveaux actuels")
+    parser.add_argument(
+        "--min-sample",
+        type=_positive_int,
+        default=MIN_SAMPLE,
+        help="effectif minimal d'une catégorie pour que son plancher s'applique (défaut : 10)",
+    )
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     return parser
 
@@ -413,6 +488,8 @@ def _write_floors(config_path: Path, config: EvalConfig) -> None:
         "# Jeux d'évaluation du vérificateur et planchers de la CI (taux entre 0 et 1).\n"
         "# Les planchers sont les niveaux mesurés : detection = minimum, false_alarms = maximum.\n"
         "# Les modifier est une décision à justifier : jamais pour faire passer la CI.\n"
+        "# Un plancher ne s'applique qu'à une catégorie d'au moins 10 phrases (--min-sample) ;\n"
+        "# en dessous, la mesure est affichée « INFORMATIF » et ne fait pas échouer.\n"
         "# Régénérés par : uv run python evals/run_verifier_eval.py --write-floors\n\n"
     )
     body = yaml.safe_dump(
@@ -507,7 +584,9 @@ def main(arguments: list[str]) -> int:
         if floors is None:
             print(f"Aucun plancher défini pour le jeu « {name} ».", file=sys.stderr)
             return 1
-        problems = check_floors(report, floors)
+        problems = check_floors(report, floors, options.min_sample)
+        for line in informative_floors(report, floors, options.min_sample):
+            print(line)
         for problem in problems:
             print(f"PLANCHER FRANCHI - {problem}", file=sys.stderr)
         print(f"Planchers {name} : {'franchis' if problems else 'respectés'}.")

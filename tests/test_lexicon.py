@@ -5,6 +5,7 @@ import re
 import pytest
 
 from atlas.core import lexicon
+from atlas.core.claims.rules import detect_claims
 from atlas.core.lexicon import (
     LEXICON,
     PARTICIPLE_CLASS,
@@ -14,7 +15,6 @@ from atlas.core.lexicon import (
     VERB_CLASSES,
     Domain,
 )
-from atlas.core.verifier import detect_claims
 
 DOMAINS = {
     "demo": Domain(
